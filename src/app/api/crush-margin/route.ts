@@ -1,43 +1,47 @@
-
 import { NextResponse } from "next/server";
-import { fetchJiaoyifamenData, fetchSinaFuturesData } from "@/lib/external-api";
-import { calculateCrushMargins } from "@/lib/crush-margin";
+import { supabase } from "@/lib/supabase";
+import { CrushMarginData } from "@/lib/crush-margin";
 
 export const dynamic = 'force-dynamic'; // Disable static optimization for this route
 
 export async function GET() {
     try {
-        console.log("Fetching crush margin data...");
-        // Fetch data in parallel
-        const [oilData, mealData, beanData] = await Promise.all([
-            fetchJiaoyifamenData("Y"), // Soybean Oil
-            fetchJiaoyifamenData("M"), // Soybean Meal
-            fetchSinaFuturesData("B0"), // Soybean No.2 (DCE) - B0 usually continuous
-        ]);
+        console.log("Fetching crush margin data from Supabase...");
 
-        console.log(`Fetched: Oil(${oilData.length}), Meal(${mealData.length}), Bean(${beanData.length})`);
+        const { data, error } = await supabase
+            .from('crush_margins')
+            .select('*')
+            .order('date', { ascending: true });
 
-        if (oilData.length === 0 || mealData.length === 0 || beanData.length === 0) {
-            const missing = [];
-            if (oilData.length === 0) missing.push("Soybean Oil (Y)");
-            if (mealData.length === 0) missing.push("Soybean Meal (M)");
-            if (beanData.length === 0) missing.push("Soybean No.2 (B0)");
-
-            console.error(`Data fetch failed. Missing: ${missing.join(", ")}`);
-
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: `Failed to fetch external data. Missing: ${missing.join(", ")}`
-                },
-                { status: 503 }
-            );
+        if (error) {
+            console.error("Supabase error:", error);
+            throw error;
         }
 
-        const marginData = calculateCrushMargins(oilData, mealData, beanData);
+        if (!data || data.length === 0) {
+            console.warn("No data found in Supabase 'crush_margins' table.");
+            return NextResponse.json({
+                success: true,
+                data: [],
+                meta: { count: 0, latest: null, updatedAt: new Date().toISOString() }
+            });
+        }
 
-        // Sort by date just in case
-        marginData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        console.log(`Fetched ${data.length} records from Supabase.`);
+
+        // Map DB snake_case to Frontend camelCase
+        const marginData: CrushMarginData[] = data.map((row: any) => ({
+            date: row.date,
+            soybeanOilPrice: row.soybean_oil_price,
+            soybeanMealPrice: row.soybean_meal_price,
+            soybeanNo2Price: row.soybean_no2_price,
+            soybeanOilBasis: row.oil_basis,
+            soybeanMealBasis: row.meal_basis,
+            grossMargin: row.gross_margin,
+            futuresMargin: row.futures_margin,
+            spotOilMealRatio: row.oil_meal_ratio,
+            oilBasisRate: row.soybean_oil_price ? (row.oil_basis / row.soybean_oil_price) * 100 : 0
+        }));
 
         return NextResponse.json({
             success: true,
