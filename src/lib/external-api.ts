@@ -110,20 +110,46 @@ export async function fetchSinaFuturesData(symbol: string): Promise<DailyData[]>
     const url = `https://stock2.finance.sina.com.cn/futures/api/jsonp.php/var%20_${symbol}=/InnerFuturesNewService.getDailyKLine?symbol=${symbol}&_=${Date.now()}`;
 
     try {
+        console.log(`Fetching Sina data for ${symbol}...`);
         const response = await fetch(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0' },
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://finance.sina.com.cn/',
+                'Accept': '*/*',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+            },
             next: { revalidate: 3600 }
         });
 
-        if (!response.ok) return [];
+        if (!response.ok) {
+            console.error(`Sina API error for ${symbol}: ${response.status} ${response.statusText}`);
+            return [];
+        }
 
         const text = await response.text();
+
+        // Log the first few characters to trace what we got (debug only)
+        // console.log(`Sina response preview: ${text.substring(0, 100)}...`);
+
         // The response is JSONP: var _B0=([...])
-        const jsonStr = text.match(/=\s*(\[.*\])/)?.[1];
-        if (!jsonStr) return [];
+        // It might be split across lines or formatted differently
+        const jsonMatch = text.match(/=\s*(\[.*\])/s); // Use 's' flag for dot matches newline
+        const jsonStr = jsonMatch?.[1];
+
+        if (!jsonStr) {
+            console.error(`Sina data format mismatch. content: ${text.substring(0, 100)}...`);
+            return [];
+        }
 
         const data = JSON.parse(jsonStr);
         // Data format: { d: "2023-01-01", o: "...", h: "...", l: "...", c: "...", v: "..." }
+
+        if (!Array.isArray(data)) {
+            console.error("Sina data is not an array");
+            return [];
+        }
+
+        console.log(`Sina fetched ${data.length} records for ${symbol}`);
 
         return data.map((item: any) => ({
             date: item.d,
