@@ -127,7 +127,128 @@ export function CrushMarginDashboard({
                 </div>
             </div>
 
-            {/* 1. Position Chart - 中粮期货豆油空单持仓走势 */}
+            {/* 1. Crush Margin Chart - 大豆压榨利润走势 */}
+            <div className="card p-2 md:p-4">
+                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
+                    <span className="w-1 h-3 md:h-4 bg-[#800080] rounded"></span>
+                    压榨利润走势 - 现货: {latest.grossMargin.toFixed(0)}
+                </h3>
+                <div className="h-[180px] md:h-[260px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                            <defs>
+                                <linearGradient id="colorFuturesMargin" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor={COLORS.futuresMargin} stopOpacity={0.4} />
+                                    <stop offset="95%" stopColor={COLORS.futuresMargin} stopOpacity={0.1} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                            <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} />
+                            <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
+                            <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilOverlay} fontSize={8} width={32} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} domain={['auto', 'auto']} />
+                            <Tooltip
+                                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
+                                formatter={(value, name) => {
+                                    if (name === '豆油(右)') return [`${Number(value).toFixed(0)}`, String(name)];
+                                    return [`${Number(value).toFixed(0)}`, String(name)];
+                                }}
+                            />
+                            <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
+                            <ReferenceLine y={0} yAxisId="left" stroke={COLORS.breakeven} strokeWidth={1.5} />
+                            <Area yAxisId="left" type="monotone" dataKey="futuresMargin" name="盘面榨利" fill="url(#colorFuturesMargin)" stroke={COLORS.futuresMargin} strokeWidth={1} />
+                            <Line yAxisId="left" type="monotone" dataKey="grossMargin" name="现货榨利" stroke={COLORS.grossMargin} strokeWidth={2} dot={false} />
+                            <Line yAxisId="right" type="monotone" dataKey="soybeanOilPrice" name="豆油(右)" stroke={COLORS.oilOverlay} strokeDasharray="5 5" strokeWidth={1} dot={false} opacity={0.7} />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                </div>
+                {/* Annotations - hidden on mobile */}
+                <div className="hidden md:flex justify-between text-xs text-[var(--muted)] mt-2 px-12">
+                    <span>最高: <span className="text-purple-600 font-medium">{marginMax.toFixed(0)}</span> ({maxMarginPoint?.date})</span>
+                    <span>最低: <span className="text-purple-600 font-medium">{marginMin.toFixed(0)}</span> ({minMarginPoint?.date})</span>
+                </div>
+            </div>
+
+            {/* 2. Basis Chart - 基差走势 & 油粕比 */}
+            <div className="card p-2 md:p-4">
+                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
+                    <span className="w-1 h-3 md:h-4 bg-[#228B22] rounded"></span>
+                    基差走势 & 油粕比: {latest.spotOilMealRatio.toFixed(3)}
+                </h3>
+                <div className="h-[180px] md:h-[260px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                            <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} />
+                            <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
+                            <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilMealRatio} fontSize={8} width={24} domain={['auto', 'auto']} />
+                            <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }} />
+                            <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
+                            <ReferenceLine y={0} stroke="gray" strokeDasharray="3 3" yAxisId="left" opacity={0.5} />
+                            <Line yAxisId="left" type="monotone" dataKey="soybeanOilBasis" name="豆油基差" stroke={COLORS.oilBasis} strokeDasharray="5 5" dot={false} strokeWidth={1.5} />
+                            <Line yAxisId="left" type="monotone" dataKey="soybeanMealBasis" name="豆粕基差" stroke={COLORS.mealBasis} strokeDasharray="5 5" dot={false} strokeWidth={1.5} />
+                            <Area yAxisId="right" type="monotone" dataKey="spotOilMealRatio" name="油粕比" fill={COLORS.oilMealRatio} fillOpacity={0.2} stroke={COLORS.oilMealRatio} strokeWidth={1} />
+                            <Line yAxisId="right" type="monotone" dataKey="oilBasisRate" name="基差率%" stroke={COLORS.basisRate} strokeWidth={1.5} dot={false} />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            {/* 3. Oil Comparison Chart - 油脂板块价格对比 */}
+            <div className="card p-2 md:p-4">
+                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
+                    <span className="w-1 h-3 md:h-4 bg-[#FFD700] rounded"></span>
+                    油脂板块价格对比 (豆、棕、菜)
+                </h3>
+                <div className="h-[180px] md:h-[260px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        {oilData && oilData.length > 0 ? (
+                            <LineChart data={oilData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                                <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(oilData?.length || 0)} />
+                                <YAxis stroke="var(--muted)" fontSize={8} domain={['auto', 'auto']} width={32} />
+                                <Tooltip
+                                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
+                                    formatter={(value) => [`${Number(value).toFixed(0)}`, '']}
+                                />
+                                <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
+                                <Line type="monotone" dataKey="soybeanOil" name="豆油(Y)" stroke={COLORS.soybeanOil} dot={false} strokeWidth={2} />
+                                <Line type="monotone" dataKey="palmOil" name="棕榄油(P)" stroke={COLORS.palm} dot={false} strokeWidth={1.5} />
+                                <Line type="monotone" dataKey="rapeseedOil" name="菜油(OI)" stroke={COLORS.rapeseed} dot={false} strokeWidth={1.5} />
+                            </LineChart>
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-[var(--muted)] text-sm">暂无油脂对比数据</div>
+                        )}
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            {/* 4. Futures Price Chart - 期货价格走势 (双轴) */}
+            <div className="card p-2 md:p-4">
+                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
+                    <span className="w-1 h-3 md:h-4 bg-[#FF8C00] rounded"></span>
+                    期货价格走势 (双轴)
+                </h3>
+                <div className="h-[180px] md:h-[260px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                            <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} />
+                            <YAxis yAxisId="left" stroke={COLORS.soybeanOil} fontSize={8} domain={['auto', 'auto']} width={32} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                            <YAxis yAxisId="right" orientation="right" stroke={COLORS.soybeanMeal} fontSize={8} domain={['auto', 'auto']} width={28} />
+                            <Tooltip
+                                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
+                                formatter={(value, name) => [`${Number(value).toFixed(0)}`, String(name)]}
+                            />
+                            <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
+                            <Line yAxisId="left" type="monotone" dataKey="soybeanOilPrice" name="豆油" stroke={COLORS.soybeanOil} dot={false} strokeWidth={1.5} />
+                            <Line yAxisId="right" type="monotone" dataKey="soybeanMealPrice" name="豆粕" stroke={COLORS.soybeanMeal} dot={false} strokeWidth={1.5} />
+                            <Line yAxisId="right" type="monotone" dataKey="soybeanNo2Price" name="豆二" stroke={COLORS.soybeanNo2} strokeDasharray="5 5" dot={false} strokeWidth={1.5} />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            {/* 5. Position Chart - 中粮期货豆油空单持仓走势 */}
             <div className="card p-2 md:p-4">
                 <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
                     <span className="w-1 h-3 md:h-4 bg-[#FF6B6B] rounded"></span>
@@ -181,126 +302,6 @@ export function CrushMarginDashboard({
                 </div>
             </div>
 
-            {/* 2. Futures Price Chart - 期货价格走势 (双轴) */}
-            <div className="card p-2 md:p-4">
-                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
-                    <span className="w-1 h-3 md:h-4 bg-[#FF8C00] rounded"></span>
-                    期货价格走势 (双轴)
-                </h3>
-                <div className="h-[180px] md:h-[260px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-                            <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} />
-                            <YAxis yAxisId="left" stroke={COLORS.soybeanOil} fontSize={8} domain={['auto', 'auto']} width={32} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                            <YAxis yAxisId="right" orientation="right" stroke={COLORS.soybeanMeal} fontSize={8} domain={['auto', 'auto']} width={28} />
-                            <Tooltip
-                                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
-                                formatter={(value, name) => [`${Number(value).toFixed(0)}`, String(name)]}
-                            />
-                            <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
-                            <Line yAxisId="left" type="monotone" dataKey="soybeanOilPrice" name="豆油" stroke={COLORS.soybeanOil} dot={false} strokeWidth={1.5} />
-                            <Line yAxisId="right" type="monotone" dataKey="soybeanMealPrice" name="豆粕" stroke={COLORS.soybeanMeal} dot={false} strokeWidth={1.5} />
-                            <Line yAxisId="right" type="monotone" dataKey="soybeanNo2Price" name="豆二" stroke={COLORS.soybeanNo2} strokeDasharray="5 5" dot={false} strokeWidth={1.5} />
-                        </ComposedChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-
-            {/* 3. Basis Chart - 基差走势 & 油粕比 */}
-            <div className="card p-2 md:p-4">
-                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
-                    <span className="w-1 h-3 md:h-4 bg-[#228B22] rounded"></span>
-                    基差走势 & 油粕比: {latest.spotOilMealRatio.toFixed(3)}
-                </h3>
-                <div className="h-[180px] md:h-[260px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-                            <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} />
-                            <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
-                            <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilMealRatio} fontSize={8} width={24} domain={['auto', 'auto']} />
-                            <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }} />
-                            <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
-                            <ReferenceLine y={0} stroke="gray" strokeDasharray="3 3" yAxisId="left" opacity={0.5} />
-                            <Line yAxisId="left" type="monotone" dataKey="soybeanOilBasis" name="豆油基差" stroke={COLORS.oilBasis} strokeDasharray="5 5" dot={false} strokeWidth={1.5} />
-                            <Line yAxisId="left" type="monotone" dataKey="soybeanMealBasis" name="豆粕基差" stroke={COLORS.mealBasis} strokeDasharray="5 5" dot={false} strokeWidth={1.5} />
-                            <Area yAxisId="right" type="monotone" dataKey="spotOilMealRatio" name="油粕比" fill={COLORS.oilMealRatio} fillOpacity={0.2} stroke={COLORS.oilMealRatio} strokeWidth={1} />
-                            <Line yAxisId="right" type="monotone" dataKey="oilBasisRate" name="基差率%" stroke={COLORS.basisRate} strokeWidth={1.5} dot={false} />
-                        </ComposedChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-
-            {/* 4. Crush Margin Chart - 大豆压榨利润走势 */}
-            <div className="card p-2 md:p-4">
-                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
-                    <span className="w-1 h-3 md:h-4 bg-[#800080] rounded"></span>
-                    压榨利润走势 - 现货: {latest.grossMargin.toFixed(0)}
-                </h3>
-                <div className="h-[180px] md:h-[260px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                            <defs>
-                                <linearGradient id="colorFuturesMargin" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor={COLORS.futuresMargin} stopOpacity={0.4} />
-                                    <stop offset="95%" stopColor={COLORS.futuresMargin} stopOpacity={0.1} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-                            <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} />
-                            <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
-                            <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilOverlay} fontSize={8} width={32} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} domain={['auto', 'auto']} />
-                            <Tooltip
-                                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
-                                formatter={(value, name) => {
-                                    if (name === '豆油(右)') return [`${Number(value).toFixed(0)}`, String(name)];
-                                    return [`${Number(value).toFixed(0)}`, String(name)];
-                                }}
-                            />
-                            <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
-                            <ReferenceLine y={0} yAxisId="left" stroke={COLORS.breakeven} strokeWidth={1.5} />
-                            <Area yAxisId="left" type="monotone" dataKey="futuresMargin" name="盘面榨利" fill="url(#colorFuturesMargin)" stroke={COLORS.futuresMargin} strokeWidth={1} />
-                            <Line yAxisId="left" type="monotone" dataKey="grossMargin" name="现货榨利" stroke={COLORS.grossMargin} strokeWidth={2} dot={false} />
-                            <Line yAxisId="right" type="monotone" dataKey="soybeanOilPrice" name="豆油(右)" stroke={COLORS.oilOverlay} strokeDasharray="5 5" strokeWidth={1} dot={false} opacity={0.7} />
-                        </ComposedChart>
-                    </ResponsiveContainer>
-                </div>
-                {/* Annotations - hidden on mobile */}
-                <div className="hidden md:flex justify-between text-xs text-[var(--muted)] mt-2 px-12">
-                    <span>最高: <span className="text-purple-600 font-medium">{marginMax.toFixed(0)}</span> ({maxMarginPoint?.date})</span>
-                    <span>最低: <span className="text-purple-600 font-medium">{marginMin.toFixed(0)}</span> ({minMarginPoint?.date})</span>
-                </div>
-            </div>
-
-            {/* 5. Oil Comparison Chart - 油脂板块价格对比 */}
-            <div className="card p-2 md:p-4">
-                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
-                    <span className="w-1 h-3 md:h-4 bg-[#FFD700] rounded"></span>
-                    油脂板块价格对比 (豆、棕、菜)
-                </h3>
-                <div className="h-[180px] md:h-[260px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                        {oilData && oilData.length > 0 ? (
-                            <LineChart data={oilData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-                                <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(oilData?.length || 0)} />
-                                <YAxis stroke="var(--muted)" fontSize={8} domain={['auto', 'auto']} width={32} />
-                                <Tooltip
-                                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
-                                    formatter={(value) => [`${Number(value).toFixed(0)}`, '']}
-                                />
-                                <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
-                                <Line type="monotone" dataKey="soybeanOil" name="豆油(Y)" stroke={COLORS.soybeanOil} dot={false} strokeWidth={2} />
-                                <Line type="monotone" dataKey="palmOil" name="棕榄油(P)" stroke={COLORS.palm} dot={false} strokeWidth={1.5} />
-                                <Line type="monotone" dataKey="rapeseedOil" name="菜油(OI)" stroke={COLORS.rapeseed} dot={false} strokeWidth={1.5} />
-                            </LineChart>
-                        ) : (
-                            <div className="flex items-center justify-center h-full text-[var(--muted)] text-sm">暂无油脂对比数据</div>
-                        )}
-                    </ResponsiveContainer>
-                </div>
-            </div>
         </div>
     );
 }
