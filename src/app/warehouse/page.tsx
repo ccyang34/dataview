@@ -112,6 +112,7 @@ export default function WarehousePage() {
     const [globalFilter, setGlobalFilter] = useState("");
     const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([]);
     const [density, setDensity] = useState<'compact' | 'normal' | 'relaxed'>('normal');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     // TanStack Table setup
     const tableColumns = useMemo<ColumnDef<any>[]>(() => {
@@ -201,6 +202,10 @@ export default function WarehousePage() {
             setRawData(data.data);
             setColumns(data.columns);
             setColumnOrder(data.columns);
+            // On mobile, close sidebar after selecting a table
+            if (window.innerWidth < 1024) {
+                setIsSidebarOpen(false);
+            }
         } catch (err: any) {
             setAuthError(err.message);
         } finally {
@@ -257,9 +262,9 @@ export default function WarehousePage() {
     }
 
     return (
-        <div className="pt-16 min-h-screen flex flex-col bg-[var(--background)]">
+        <div className="h-screen flex flex-col bg-[var(--background)] overflow-hidden">
             {/* Header */}
-            <header className="h-14 border-b border-[var(--border)] bg-[var(--card)]/50 backdrop-blur-md px-4 flex items-center justify-between sticky top-0 z-30">
+            <header className="h-14 border-b border-[var(--border)] bg-[var(--card)]/80 backdrop-blur-md px-4 flex items-center justify-between sticky top-0 z-40 shrink-0">
                 <div className="flex items-center gap-4">
                     <Link href="/" className="p-2 hover:bg-[var(--card-hover)] rounded-lg transition-colors" title="返回首页">
                         <Home className="w-5 h-5 text-[var(--primary)]" />
@@ -292,8 +297,17 @@ export default function WarehousePage() {
 
             <div className="flex-1 flex overflow-hidden">
                 {/* Sidebar */}
-                <aside className="w-[300px] border-r border-[var(--border)] bg-[var(--card)] flex flex-col hidden lg:flex">
-                    <div className="p-4 space-y-4">
+                <aside className={`${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"} fixed lg:static inset-y-0 left-0 z-30 w-[300px] lg:w-[320px] border-r border-[var(--border)] bg-[var(--card)] flex flex-col transition-transform duration-300 ease-in-out`}>
+                    <div className="p-4 space-y-4 shrink-0 mt-14 lg:mt-0">
+                        <div className="flex items-center justify-between lg:hidden mb-2">
+                            <div className="flex items-center gap-2">
+                                <Database className="w-4 h-4 text-[var(--primary)]" />
+                                <span className="font-bold text-sm">表列表</span>
+                            </div>
+                            <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-[var(--card-hover)] rounded-md">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
                             <input
@@ -351,12 +365,18 @@ export default function WarehousePage() {
                             {/* Table Toolbar */}
                             <div className="h-14 border-b border-[var(--border)] px-6 flex items-center justify-between bg-[var(--card)]">
                                 <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg ${activeItem.type === 'VIEW' ? "bg-blue-500/10 text-blue-500" : "bg-purple-500/10 text-purple-500"}`}>
+                                    <button
+                                        onClick={() => setIsSidebarOpen(true)}
+                                        className="lg:hidden p-2 -ml-2 hover:bg-[var(--card-hover)] rounded-lg text-[var(--primary)]"
+                                    >
+                                        <ListFilter className="w-5 h-5" />
+                                    </button>
+                                    <div className={`p-2 rounded-lg hidden sm:block ${activeItem.type === 'VIEW' ? "bg-blue-500/10 text-blue-500" : "bg-purple-500/10 text-purple-500"}`}>
                                         {activeItem.type === 'VIEW' ? <Eye className="w-4 h-4" /> : <Table className="w-4 h-4" />}
                                     </div>
-                                    <div>
-                                        <h2 className="text-sm font-bold leading-none">{activeItem.name}</h2>
-                                        <p className="text-[10px] text-[var(--muted)] mt-1">仅加载前100行数据</p>
+                                    <div className="min-w-0">
+                                        <h2 className="text-sm font-bold leading-none truncate">{activeItem.name}</h2>
+                                        <p className="text-[10px] text-[var(--muted)] mt-1">前100行数据</p>
                                     </div>
                                 </div>
 
