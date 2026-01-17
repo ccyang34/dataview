@@ -38,26 +38,25 @@ interface StatCardProps {
 
 function StatCard({ title, value, change, icon, isStock = true }: StatCardProps) {
   const isPositive = change >= 0;
-  // Financial coloring: A-Share usually Red for UP, Green for DOWN
-  // But standard UI is Green for UP, Red for DOWN. Let's stick to standard for consistency with previous charts.
-  const colorClass = isPositive ? "text-[var(--success)]" : "text-[var(--danger)]";
-  const bgClass = isPositive ? "bg-[var(--success)]/10" : "bg-[var(--danger)]/10";
+  // Financial coloring: A-Share style (Red for UP, Green for DOWN)
+  const colorClass = isPositive ? "text-[#ff4d4f]" : "text-[#52c41a]";
+  const bgClass = isPositive ? "bg-[#ff4d4f]/10" : "bg-[#52c41a]/10";
   const Icon = isPositive ? TrendingUp : TrendingDown;
 
   return (
-    <div className="card p-3 sm:p-5 group hover:shadow-lg transition-all duration-300">
-      <div className="flex items-start justify-between gap-2">
+    <div className="card p-2 sm:p-5 group hover:shadow-lg transition-all duration-300">
+      <div className="flex items-start justify-between gap-1 sm:gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-[10px] sm:text-xs font-medium text-[var(--muted)] mb-0.5 sm:mb-1 truncate">{title}</p>
-          <div className="flex items-baseline gap-1 sm:gap-2">
-            <p className="text-base sm:text-xl font-bold tracking-tight truncate">{typeof value === 'number' ? value.toLocaleString(undefined, { minimumFractionDigits: 1 }) : value}</p>
+          <div className="flex items-baseline gap-0.5 sm:gap-2">
+            <p className="text-sm sm:text-xl font-bold tracking-tight truncate">{typeof value === 'number' ? value.toLocaleString(undefined, { minimumFractionDigits: 1 }) : value}</p>
           </div>
-          <div className={`flex items-center gap-0.5 sm:gap-1 mt-1 sm:mt-2 text-[10px] sm:text-xs font-bold ${colorClass}`}>
-            <Icon className="w-2.5 h-2.5 sm:w-3 h-3" />
+          <div className={`flex items-center gap-0.5 sm:gap-1 mt-0.5 sm:mt-2 text-[9px] sm:text-xs font-bold ${colorClass}`}>
+            <Icon className="w-2 h-2 sm:w-3 h-3" />
             <span>{isPositive ? "+" : ""}{change.toFixed(2)}%</span>
           </div>
         </div>
-        <div className={`p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl ${bgClass} ${colorClass} group-hover:scale-110 transition-transform shrink-0`}>
+        <div className={`hidden sm:flex p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl ${bgClass} ${colorClass} group-hover:scale-110 transition-transform shrink-0`}>
           {React.isValidElement(icon) ? React.cloneElement(icon as React.ReactElement<any>, { className: "w-3.5 h-3.5 sm:w-5 h-5" }) : icon}
         </div>
       </div>
@@ -129,8 +128,8 @@ export default function Home() {
         </div>
 
         {/* Indices Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {indices.slice(0, 4).map((idx) => (
+        <div className="grid grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+          {indices.slice(0, 3).map((idx) => (
             <StatCard
               key={idx.symbol}
               title={idx.name}
@@ -141,7 +140,7 @@ export default function Home() {
           ))}
           {/* Soy Crush Margin Spotlight */}
           {crushLatest && (
-            <div className="sm:col-span-2 lg:col-span-4 mt-2">
+            <div className="col-span-3 lg:col-span-4 mt-2">
               <Link href="/analysis/crush-margin" className="block">
                 <div className="card p-3 sm:p-4 border-l-4 border-[var(--primary)] hover:translate-x-1 transition-all flex items-center justify-between bg-gradient-to-r from-[var(--primary)]/5 to-transparent">
                   <div className="flex items-center gap-3 sm:gap-4">
@@ -231,7 +230,7 @@ export default function Home() {
                     </div>
                     <div className="text-right">
                       <p className="font-mono text-xs font-medium">{idx.current.toLocaleString()}</p>
-                      <p className={`font-mono font-bold text-[10px] sm:text-xs ${idx.changePct >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                      <p className={`font-mono font-bold text-[10px] sm:text-xs ${idx.changePct >= 0 ? 'text-[#ff4d4f]' : 'text-[#52c41a]'}`}>
                         {idx.changePct >= 0 ? '+' : ''}{idx.changePct.toFixed(2)}%
                       </p>
                     </div>
