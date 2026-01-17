@@ -161,6 +161,7 @@ export function CrushMarginDashboard({
                                     if (name === '豆油(右)') return [`${Number(value).toFixed(0)}`, String(name)];
                                     return [`${Number(value).toFixed(0)}`, String(name)];
                                 }}
+                                trigger={isMobile ? "click" : "hover"}
                             />
                             <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
                             <ReferenceLine y={0} yAxisId="left" stroke={COLORS.breakeven} strokeWidth={1.5} />
@@ -196,6 +197,7 @@ export function CrushMarginDashboard({
                                     if (name === '油粕比' || name === '基差率%') return [`${Number(value).toFixed(2)}`, String(name)];
                                     return [`${Number(value).toFixed(0)}`, String(name)];
                                 }}
+                                trigger={isMobile ? "click" : "hover"}
                             />
                             <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
                             <ReferenceLine y={0} stroke="gray" strokeDasharray="3 3" yAxisId="left" opacity={0.5} />
@@ -224,6 +226,7 @@ export function CrushMarginDashboard({
                                 <Tooltip
                                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                     formatter={(value, name) => [`${Number(value).toFixed(0)}`, String(name)]}
+                                    trigger={isMobile ? "click" : "hover"}
                                 />
                                 <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
                                 <Line type="monotone" dataKey="soybeanOil" name="豆油(Y)" stroke={COLORS.soybeanOil} dot={false} strokeWidth={2} />
@@ -253,6 +256,7 @@ export function CrushMarginDashboard({
                             <Tooltip
                                 contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                 formatter={(value, name) => [`${Number(value).toFixed(0)}`, String(name)]}
+                                trigger={isMobile ? "click" : "hover"}
                             />
                             <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
                             <Line yAxisId="left" type="monotone" dataKey="soybeanOilPrice" name="豆油" stroke={COLORS.soybeanOil} dot={false} strokeWidth={1.5} />
@@ -300,7 +304,8 @@ export function CrushMarginDashboard({
                                 <YAxis stroke="var(--muted)" fontSize={8} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} width={28} domain={['auto', 'auto']} />
                                 <Tooltip
                                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
-                                    formatter={(value) => [`${Number(value).toLocaleString()} 手`, '']}
+                                    formatter={(value, name) => [`${Number(value).toLocaleString()} 手`, String(name)]}
+                                    trigger={isMobile ? "click" : "hover"}
                                 />
                                 <Legend verticalAlign="top" height={24} iconSize={8} wrapperStyle={{ fontSize: '10px' }} />
 
