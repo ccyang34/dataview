@@ -171,7 +171,7 @@ export function CrushMarginDashboard({
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
                                 <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} stroke="var(--muted)" fontSize={9} tickFormatter={formatTimestamp} tickCount={8} />
-                                <YAxis stroke="var(--muted)" fontSize={8} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} width={28} />
+                                <YAxis stroke="var(--muted)" fontSize={8} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} width={28} domain={['auto', 'auto']} />
                                 <Tooltip
                                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                     formatter={(value) => [`${Number(value).toLocaleString()} 手`, '']}
@@ -228,8 +228,8 @@ export function CrushMarginDashboard({
                         <ComposedChart data={dataWithTime} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
                             <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} stroke="var(--muted)" fontSize={9} tickFormatter={formatTimestamp} tickCount={8} />
-                            <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} />
-                            <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilMealRatio} fontSize={8} width={24} />
+                            <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
+                            <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilMealRatio} fontSize={8} width={24} domain={['auto', 'auto']} />
                             <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }} />
                             <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
                             <ReferenceLine y={0} stroke="gray" strokeDasharray="3 3" yAxisId="left" opacity={0.5} />
@@ -259,8 +259,8 @@ export function CrushMarginDashboard({
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
                             <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} stroke="var(--muted)" fontSize={9} tickFormatter={formatTimestamp} tickCount={8} />
-                            <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} />
-                            <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilOverlay} fontSize={8} width={32} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                            <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
+                            <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilOverlay} fontSize={8} width={32} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} domain={['auto', 'auto']} />
                             <Tooltip
                                 contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                 formatter={(value, name) => {
