@@ -342,7 +342,7 @@ export default function Home() {
                 <div className="flex bg-[var(--background)] p-1 rounded-lg border border-[var(--border)]">
                   <button
                     onClick={() => setMainChartType("kline")}
-                    className={`px-3 py-1.5 text-xs sm:text-sm font-bold rounded-md transition-all ${mainChartType === "kline"
+                    className={`px-3 py-1.5 text-xs sm:text-sm font-bold rounded-md transition-all whitespace-nowrap ${mainChartType === "kline"
                       ? "bg-[var(--card)] text-[var(--primary)] shadow-sm border border-[var(--border)]"
                       : "text-[var(--muted)] hover:text-[var(--foreground)]"
                       }`}
@@ -351,7 +351,7 @@ export default function Home() {
                   </button>
                   <button
                     onClick={() => setMainChartType("comparison")}
-                    className={`px-3 py-1.5 text-xs sm:text-sm font-bold rounded-md transition-all ${mainChartType === "comparison"
+                    className={`px-3 py-1.5 text-xs sm:text-sm font-bold rounded-md transition-all whitespace-nowrap ${mainChartType === "comparison"
                       ? "bg-[var(--card)] text-[var(--accent)] shadow-sm border border-[var(--border)]"
                       : "text-[var(--muted)] hover:text-[var(--foreground)]"
                       }`}
