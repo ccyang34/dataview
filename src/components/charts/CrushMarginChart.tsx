@@ -12,6 +12,7 @@ import {
     Legend,
     Area,
     ComposedChart,
+    ReferenceLine,
 } from "recharts";
 import { CrushMarginData } from "@/lib/crush-margin";
 
@@ -66,17 +67,19 @@ export function CrushMarginDashboard({ data, title = "大豆压榨利润分析",
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                         <XAxis dataKey="date" stroke="var(--muted)" fontSize={12} tickLine={false} />
                         <YAxis yAxisId="left" stroke="var(--muted)" fontSize={12} tickLine={false} axisLine={false} label={{ value: '基差', angle: -90, position: 'insideLeft' }} />
-                        <YAxis yAxisId="right" orientation="right" stroke="#10b981" fontSize={12} tickLine={false} axisLine={false} label={{ value: '油粕比', angle: 90, position: 'insideRight' }} />
+                        <YAxis yAxisId="right" orientation="right" stroke="green" fontSize={12} tickLine={false} axisLine={false} label={{ value: '油粕比 / 基差率(%)', angle: 90, position: 'insideRight' }} />
                         <Tooltip
                             contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)" }}
                         />
                         <Legend verticalAlign="top" height={36} />
-                        <Line yAxisId="left" type="monotone" dataKey="soybeanOilBasis" name="豆油基差" stroke="darkorange" strokeDasharray="3 3" dot={false} />
-                        <Line yAxisId="left" type="monotone" dataKey="soybeanMealBasis" name="豆粕基差" stroke="#2563eb" strokeDasharray="3 3" dot={false} />
+                        {/* Left Axis: Basis */}
+                        <Line yAxisId="left" type="monotone" dataKey="soybeanOilBasis" name="豆油基差" stroke="darkorange" strokeDasharray="5 5" dot={false} strokeWidth={1.5} />
+                        <Line yAxisId="left" type="monotone" dataKey="soybeanMealBasis" name="豆粕基差" stroke="blue" strokeDasharray="5 5" dot={false} strokeWidth={1.5} />
+                        <ReferenceLine y={0} stroke="gray" strokeDasharray="3 3" yAxisId="left" opacity={0.5} />
 
-                        <Area yAxisId="right" type="monotone" dataKey="spotOilMealRatio" name="现货油粕比" fill="#10b981" fillOpacity={0.1} stroke="#10b981" strokeWidth={1} />
-                        {/* 0 line for basis */}
-                        {/* <ReferenceLine y={0} stroke="#666" yAxisId="left"/> */}
+                        {/* Right Axis: Ratio (Area) + BasisRate (Line) */}
+                        <Area yAxisId="right" type="monotone" dataKey="spotOilMealRatio" name="现货油粕比" fill="green" fillOpacity={0.25} stroke="green" strokeWidth={1} />
+                        <Line yAxisId="right" type="monotone" dataKey="oilBasisRate" name="豆油基差率(%)" stroke="purple" strokeWidth={1.5} dot={false} />
                     </ComposedChart>
                 </ResponsiveContainer>
             </div>
@@ -93,10 +96,15 @@ export function CrushMarginDashboard({ data, title = "大豆压榨利润分析",
                             contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)" }}
                         />
                         <Legend verticalAlign="top" height={36} />
-                        {/* 盘面榨利 area */}
-                        <Area type="monotone" dataKey="futuresMargin" name="盘面榨利(不含基差)" fill="#f59e0b" fillOpacity={0.2} stroke="#f59e0b" strokeWidth={1} />
-                        {/* 含基差榨利 line */}
-                        <Line type="monotone" dataKey="grossMargin" name="现货榨利(含基差)" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+
+                        {/* 0 Line */}
+                        <ReferenceLine y={0} stroke="red" strokeWidth={1} label="盈亏平衡" />
+
+                        {/* 盘面榨利 area (Orange) */}
+                        <Area type="monotone" dataKey="futuresMargin" name="盘面榨利(不含基差)" fill="orange" fillOpacity={0.3} stroke="orange" strokeWidth={1} />
+
+                        {/* 含基差榨利 line (Purple) */}
+                        <Line type="monotone" dataKey="grossMargin" name="现货榨利(含基差)" stroke="purple" strokeWidth={2} dot={false} />
                     </ComposedChart>
                 </ResponsiveContainer>
             </div>
