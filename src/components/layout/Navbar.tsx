@@ -54,6 +54,12 @@ export function Navbar({ user }: NavbarProps) {
                         >
                             嵌入
                         </Link>
+                        <Link
+                            href="/warehouse"
+                            className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+                        >
+                            数据仓库
+                        </Link>
                     </div>
 
                     {/* Right Actions */}
@@ -121,6 +127,13 @@ export function Navbar({ user }: NavbarProps) {
                                 onClick={() => setIsOpen(false)}
                             >
                                 嵌入
+                            </Link>
+                            <Link
+                                href="/warehouse"
+                                className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
+                                onClick={() => setIsOpen(false)}
+                            >
+                                数据仓库
                             </Link>
                             <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between">
                                 <button
