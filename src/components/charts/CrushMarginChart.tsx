@@ -214,7 +214,7 @@ export function CrushMarginDashboard({
                                 <YAxis stroke="var(--muted)" fontSize={8} domain={['auto', 'auto']} width={32} />
                                 <Tooltip
                                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
-                                    formatter={(value) => [`${Number(value).toFixed(0)}`, '']}
+                                    formatter={(value, name) => [`${Number(value).toFixed(0)}`, String(name)]}
                                 />
                                 <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
                                 <Line type="monotone" dataKey="soybeanOil" name="豆油(Y)" stroke={COLORS.soybeanOil} dot={false} strokeWidth={2} />
