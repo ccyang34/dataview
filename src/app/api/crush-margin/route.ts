@@ -18,8 +18,18 @@ export async function GET() {
         console.log(`Fetched: Oil(${oilData.length}), Meal(${mealData.length}), Bean(${beanData.length})`);
 
         if (oilData.length === 0 || mealData.length === 0 || beanData.length === 0) {
+            const missing = [];
+            if (oilData.length === 0) missing.push("Soybean Oil (Y)");
+            if (mealData.length === 0) missing.push("Soybean Meal (M)");
+            if (beanData.length === 0) missing.push("Soybean No.2 (B0)");
+
+            console.error(`Data fetch failed. Missing: ${missing.join(", ")}`);
+
             return NextResponse.json(
-                { success: false, error: "Failed to fetch necessary external data" },
+                {
+                    success: false,
+                    error: `Failed to fetch external data. Missing: ${missing.join(", ")}`
+                },
                 { status: 503 }
             );
         }
