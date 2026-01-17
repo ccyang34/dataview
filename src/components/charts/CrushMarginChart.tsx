@@ -181,7 +181,13 @@ export function CrushMarginDashboard({
                             <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} />
                             <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
                             <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilMealRatio} fontSize={8} width={24} domain={['auto', 'auto']} />
-                            <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }} />
+                            <Tooltip
+                                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
+                                formatter={(value, name) => {
+                                    if (name === '油粕比' || name === '基差率%') return [`${Number(value).toFixed(2)}`, String(name)];
+                                    return [`${Number(value).toFixed(0)}`, String(name)];
+                                }}
+                            />
                             <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
                             <ReferenceLine y={0} stroke="gray" strokeDasharray="3 3" yAxisId="left" opacity={0.5} />
                             <Line yAxisId="left" type="monotone" dataKey="soybeanOilBasis" name="豆油基差" stroke={COLORS.oilBasis} strokeDasharray="5 5" dot={false} strokeWidth={1.5} />
