@@ -42,6 +42,13 @@ export function Navbar({ user }: NavbarProps) {
                             图表
                         </Link>
                         <Link
+                            href="/analysis/crush-margin"
+                            className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+                        >
+                            深度分析
+                        </Link>
+
+                        <Link
                             href="/embed"
                             className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
                         >
@@ -90,47 +97,49 @@ export function Navbar({ user }: NavbarProps) {
             </div>
 
             {/* Mobile Menu */}
-            {isOpen && (
-                <div className="md:hidden bg-[var(--card)] border-b border-[var(--border)] animate-in">
-                    <div className="px-4 py-4 space-y-3">
-                        <Link
-                            href="/dashboard"
-                            className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
-                            onClick={() => setIsOpen(false)}
-                        >
-                            仪表板
-                        </Link>
-                        <Link
-                            href="/charts"
-                            className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
-                            onClick={() => setIsOpen(false)}
-                        >
-                            图表
-                        </Link>
-                        <Link
-                            href="/embed"
-                            className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
-                            onClick={() => setIsOpen(false)}
-                        >
-                            嵌入
-                        </Link>
-                        <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between">
-                            <button
-                                onClick={toggleTheme}
-                                className="flex items-center gap-2 py-2 cursor-pointer"
+            {
+                isOpen && (
+                    <div className="md:hidden bg-[var(--card)] border-b border-[var(--border)] animate-in">
+                        <div className="px-4 py-4 space-y-3">
+                            <Link
+                                href="/dashboard"
+                                className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
+                                onClick={() => setIsOpen(false)}
                             >
-                                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                                <span>{isDark ? "浅色模式" : "深色模式"}</span>
-                            </button>
-                            {!user && (
-                                <Link href="/login" className="btn btn-primary text-sm">
-                                    登录
-                                </Link>
-                            )}
+                                仪表板
+                            </Link>
+                            <Link
+                                href="/charts"
+                                className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
+                                onClick={() => setIsOpen(false)}
+                            >
+                                图表
+                            </Link>
+                            <Link
+                                href="/embed"
+                                className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
+                                onClick={() => setIsOpen(false)}
+                            >
+                                嵌入
+                            </Link>
+                            <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between">
+                                <button
+                                    onClick={toggleTheme}
+                                    className="flex items-center gap-2 py-2 cursor-pointer"
+                                >
+                                    {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                                    <span>{isDark ? "浅色模式" : "深色模式"}</span>
+                                </button>
+                                {!user && (
+                                    <Link href="/login" className="btn btn-primary text-sm">
+                                        登录
+                                    </Link>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </nav>
+                )
+            }
+        </nav >
     );
 }
