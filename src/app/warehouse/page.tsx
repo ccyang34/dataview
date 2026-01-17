@@ -119,6 +119,15 @@ export default function WarehousePage() {
             accessorKey: col,
             header: col,
             id: col,
+            cell: info => {
+                const val = info.getValue();
+                if (val === null || val === undefined) return '-';
+                if (typeof val === 'object') {
+                    if (val instanceof Date) return val.toLocaleString();
+                    return JSON.stringify(val);
+                }
+                return val;
+            }
         }));
     }, [columns]);
 
@@ -317,8 +326,8 @@ export default function WarehousePage() {
                                     key={`${item.db_schema}.${item.name}`}
                                     onClick={() => fetchTableData(item)}
                                     className={`w-full group px-3 py-2.5 rounded-xl text-left text-sm transition-all flex items-center gap-3 ${activeItem?.name === item.name
-                                            ? "bg-[var(--primary)] text-white translate-x-1"
-                                            : "hover:bg-[var(--card-hover)] text-[var(--muted)] hover:text-[var(--foreground)]"
+                                        ? "bg-[var(--primary)] text-white translate-x-1"
+                                        : "hover:bg-[var(--card-hover)] text-[var(--muted)] hover:text-[var(--foreground)]"
                                         }`}
                                 >
                                     {item.type === 'BASE TABLE' ? <Table className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -449,11 +458,11 @@ export default function WarehousePage() {
                                                                     <td
                                                                         key={cell.id}
                                                                         className={`px-4 text-[var(--muted)] border-b border-[var(--border)] whitespace-nowrap transition-all ${density === 'compact' ? 'py-1 text-[11px]' :
-                                                                                density === 'relaxed' ? 'py-4 text-sm' :
-                                                                                    'py-2.5 text-xs'
+                                                                            density === 'relaxed' ? 'py-4 text-sm' :
+                                                                                'py-2.5 text-xs'
                                                                             }`}
                                                                     >
-                                                                        {flexRender(cell.column.columnDef.cell, cell.getContext())?.toString() ?? '-'}
+                                                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                                                     </td>
                                                                 ))}
                                                             </tr>
