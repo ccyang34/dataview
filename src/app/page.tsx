@@ -218,18 +218,22 @@ export default function Home() {
 
             {/* Global Market Mini Cards */}
             <div className="card p-0 overflow-hidden">
-              <div className="p-3 sm:p-4 border-b border-[var(--border)] font-bold text-[10px] sm:text-xs uppercase tracking-widest text-[var(--muted)] bg-[var(--card)]/50">
-                外盘早报
+              <div className="p-3 sm:p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--card)]/50">
+                <span className="font-bold text-[10px] sm:text-xs uppercase tracking-widest text-[var(--muted)]">全球市场 & 大宗商品</span>
+                <span className="text-[9px] text-[var(--muted)] opacity-60">部分数据有延时</span>
               </div>
-              <div className="divide-y divide-[var(--border)]">
+              <div className="divide-y divide-[var(--border)] overflow-y-auto max-h-[400px]">
                 {indices.slice(4).map(idx => (
                   <div key={idx.symbol} className="p-3 sm:p-4 flex items-center justify-between hover:bg-[var(--card-hover)] transition-colors">
                     <div>
                       <p className="font-bold text-xs sm:text-sm">{idx.name}</p>
-                      <p className="text-[9px] sm:text-[10px] text-[var(--muted)]">{idx.time.split(' ')[1] || idx.time}</p>
+                      <p className="text-[9px] sm:text-[10px] text-[var(--muted)]">{idx.time}</p>
                     </div>
-                    <div className={`text-right font-mono font-bold text-xs sm:text-sm ${idx.changePct >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                      {idx.changePct >= 0 ? '+' : ''}{idx.changePct.toFixed(2)}%
+                    <div className="text-right">
+                      <p className="font-mono text-xs font-medium">{idx.current.toLocaleString()}</p>
+                      <p className={`font-mono font-bold text-[10px] sm:text-xs ${idx.changePct >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                        {idx.changePct >= 0 ? '+' : ''}{idx.changePct.toFixed(2)}%
+                      </p>
                     </div>
                   </div>
                 ))}
