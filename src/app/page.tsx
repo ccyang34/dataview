@@ -45,20 +45,20 @@ function StatCard({ title, value, change, icon, isStock = true }: StatCardProps)
   const Icon = isPositive ? TrendingUp : TrendingDown;
 
   return (
-    <div className="card p-5 group hover:shadow-lg transition-all duration-300">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-xs font-medium text-[var(--muted)] mb-1">{title}</p>
-          <div className="flex items-baseline gap-2">
-            <p className="text-xl font-bold tracking-tight">{typeof value === 'number' ? value.toLocaleString(undefined, { minimumFractionDigits: 2 }) : value}</p>
+    <div className="card p-3 sm:p-5 group hover:shadow-lg transition-all duration-300">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] sm:text-xs font-medium text-[var(--muted)] mb-0.5 sm:mb-1 truncate">{title}</p>
+          <div className="flex items-baseline gap-1 sm:gap-2">
+            <p className="text-base sm:text-xl font-bold tracking-tight truncate">{typeof value === 'number' ? value.toLocaleString(undefined, { minimumFractionDigits: 1 }) : value}</p>
           </div>
-          <div className={`flex items-center gap-1 mt-2 text-xs font-bold ${colorClass}`}>
-            <Icon className="w-3 h-3" />
+          <div className={`flex items-center gap-0.5 sm:gap-1 mt-1 sm:mt-2 text-[10px] sm:text-xs font-bold ${colorClass}`}>
+            <Icon className="w-2.5 h-2.5 sm:w-3 h-3" />
             <span>{isPositive ? "+" : ""}{change.toFixed(2)}%</span>
           </div>
         </div>
-        <div className={`p-2.5 rounded-xl ${bgClass} ${colorClass} group-hover:scale-110 transition-transform`}>
-          {icon}
+        <div className={`p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl ${bgClass} ${colorClass} group-hover:scale-110 transition-transform shrink-0`}>
+          {React.isValidElement(icon) ? React.cloneElement(icon as React.ReactElement<any>, { className: "w-3.5 h-3.5 sm:w-5 h-5" }) : icon}
         </div>
       </div>
     </div>
@@ -107,16 +107,16 @@ export default function Home() {
     <div className="min-h-screen bg-[var(--background)]">
       <Navbar />
 
-      <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8">
+      <main className="pt-16 sm:pt-20 pb-8 sm:pb-12 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4 sm:space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-[var(--primary)] mb-1">
-              <Activity className="w-5 h-5 animate-pulse" />
-              <span className="text-sm font-bold tracking-widest uppercase">Finance Hub</span>
+          <div className="space-y-0.5 sm:space-y-1">
+            <div className="flex items-center gap-2 text-[var(--primary)]">
+              <Activity className="w-4 h-4 sm:w-5 h-5 animate-pulse" />
+              <span className="text-[10px] sm:text-sm font-bold tracking-widest uppercase">Finance Hub</span>
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight">全球金融市场概览</h1>
-            <p className="text-[var(--muted)] mt-1">实时追踪指数行情、压榨利润及行业数据</p>
+            <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight">全球金融市场概览</h1>
+            <p className="text-xs sm:text-[var(--muted)]">实时追踪指数行情、压榨利润及行业数据</p>
           </div>
           <button
             onClick={fetchData}
@@ -129,7 +129,7 @@ export default function Home() {
         </div>
 
         {/* Indices Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {indices.slice(0, 4).map((idx) => (
             <StatCard
               key={idx.symbol}
@@ -143,20 +143,20 @@ export default function Home() {
           {crushLatest && (
             <div className="sm:col-span-2 lg:col-span-4 mt-2">
               <Link href="/analysis/crush-margin" className="block">
-                <div className="card p-4 border-l-4 border-[var(--primary)] hover:translate-x-1 transition-all flex items-center justify-between bg-gradient-to-r from-[var(--primary)]/5 to-transparent">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-[var(--primary)] text-white rounded-xl shadow-lg shadow-[var(--primary)]/20">
-                      <ArrowRightLeft className="w-5 h-5" />
+                <div className="card p-3 sm:p-4 border-l-4 border-[var(--primary)] hover:translate-x-1 transition-all flex items-center justify-between bg-gradient-to-r from-[var(--primary)]/5 to-transparent">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="p-2 sm:p-3 bg-[var(--primary)] text-white rounded-lg sm:rounded-xl shadow-lg shadow-[var(--primary)]/20">
+                      <ArrowRightLeft className="w-4 h-4 sm:w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-sm">最新榨利分析</h3>
-                      <p className="text-xs text-[var(--muted)]">数据截止: {crushLatest.date}</p>
+                      <h3 className="font-bold text-xs sm:text-sm">最新榨利分析</h3>
+                      <p className="text-[10px] sm:text-xs text-[var(--muted)]">截止: {crushLatest.date}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs text-[var(--muted)] block">现货榨利</span>
-                    <span className={`text-xl font-black ${crushLatest.grossMargin >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                      {crushLatest.grossMargin.toFixed(0)} <small className="text-[10px] opacity-70">元/吨</small>
+                    <span className="text-[10px] sm:text-xs text-[var(--muted)] block">现货榨利</span>
+                    <span className={`text-base sm:text-xl font-black ${crushLatest.grossMargin >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                      {crushLatest.grossMargin.toFixed(0)} <small className="text-[9px] sm:text-[10px] opacity-70">元/吨</small>
                     </span>
                   </div>
                 </div>
@@ -169,15 +169,14 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Chart: KLine */}
           <div className="lg:col-span-2 card overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--card)]/50">
+            <div className="p-4 sm:p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--card)]/50">
               <div>
-                <h3 className="font-bold text-lg flex items-center gap-2">
-                  <span className="w-2 h-5 bg-[var(--primary)] rounded-full" />
+                <h3 className="font-bold text-sm sm:text-lg flex items-center gap-2">
+                  <span className="w-1.5 sm:w-2 h-4 sm:h-5 bg-[var(--primary)] rounded-full" />
                   指数技术面分析
                 </h3>
-                <p className="text-xs text-[var(--muted)] mt-1">Sina Real-time Data</p>
               </div>
-              <div className="flex bg-[var(--background)] p-1 rounded-lg border border-[var(--border)]">
+              <div className="flex bg-[var(--background)] p-0.5 sm:p-1 rounded-lg border border-[var(--border)]">
                 {[
                   { id: 'sh000001', n: '上证' },
                   { id: 'sz399001', n: '深证' },
@@ -186,14 +185,14 @@ export default function Home() {
                   <button
                     key={b.id}
                     onClick={() => setActiveK(b.id)}
-                    className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${activeK === b.id ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--muted)] hover:bg-[var(--card-hover)]'}`}
+                    className={`px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-bold rounded-md transition-all ${activeK === b.id ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--muted)] hover:bg-[var(--card-hover)]'}`}
                   >
                     {b.n}
                   </button>
                 ))}
               </div>
             </div>
-            <div className="p-4 flex-1 min-h-[400px]">
+            <div className="p-2 sm:p-4 flex-1 min-h-[300px] sm:min-h-[400px]">
               {kdata.length > 0 ? (
                 <KLineChart data={kdata} height={400} />
               ) : (
@@ -218,18 +217,18 @@ export default function Home() {
             </div>
 
             {/* Global Market Mini Cards */}
-            <div className="card p-1">
-              <div className="p-4 border-b border-[var(--border)] font-bold text-xs uppercase tracking-widest text-[var(--muted)]">
+            <div className="card p-0 overflow-hidden">
+              <div className="p-3 sm:p-4 border-b border-[var(--border)] font-bold text-[10px] sm:text-xs uppercase tracking-widest text-[var(--muted)] bg-[var(--card)]/50">
                 外盘早报
               </div>
               <div className="divide-y divide-[var(--border)]">
                 {indices.slice(4).map(idx => (
-                  <div key={idx.symbol} className="p-4 flex items-center justify-between hover:bg-[var(--card-hover)] transition-colors">
+                  <div key={idx.symbol} className="p-3 sm:p-4 flex items-center justify-between hover:bg-[var(--card-hover)] transition-colors">
                     <div>
-                      <p className="font-bold text-sm">{idx.name}</p>
-                      <p className="text-[10px] text-[var(--muted)]">{idx.time}</p>
+                      <p className="font-bold text-xs sm:text-sm">{idx.name}</p>
+                      <p className="text-[9px] sm:text-[10px] text-[var(--muted)]">{idx.time.split(' ')[1] || idx.time}</p>
                     </div>
-                    <div className={`text-right font-mono font-bold text-sm ${idx.changePct >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                    <div className={`text-right font-mono font-bold text-xs sm:text-sm ${idx.changePct >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
                       {idx.changePct >= 0 ? '+' : ''}{idx.changePct.toFixed(2)}%
                     </div>
                   </div>
