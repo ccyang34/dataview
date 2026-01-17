@@ -1,5 +1,6 @@
 
 import { startOfDay, format, parse, subDays } from "date-fns";
+import fallbackB0 from './data/fallback-b0.json';
 
 export interface DailyData {
     date: string;
@@ -100,12 +101,6 @@ export async function fetchJiaoyifamenData(type: string): Promise<DailyData[]> {
 
 // B0 (DCE Soybean No.2) fetcher implementation using Sina
 export async function fetchSinaFuturesData(symbol: string): Promise<DailyData[]> {
-    // URL pattern from Akshare: https://stock2.finance.sina.com.cn/futures/api/jsonp.php/var%20_B0=/GlobalFuturesService.getGlobalFuturesDailyKLine?symbol=B0&_=${Date.now()}&source=web&page=1&num=1000
-    // Actually for internal futures (DCE B0), it might be InnerFuturesNewService.
-    // Let's try the URL that Akshare uses for "futures_zh_daily_sina":
-    // It seems to fetch from `https://finance.sina.com.cn/futures/quotes/${symbol}.shtml` (parsing HTML?) 
-    // OR `https://stock2.finance.sina.com.cn/futures/api/jsonp.php/.../InnerFuturesNewService.getDailyKLine?symbol=${symbol}`
-
     // We will use the common Sina Futures endpoint for daily K-line.
     const url = `https://stock2.finance.sina.com.cn/futures/api/jsonp.php/var%20_${symbol}=/InnerFuturesNewService.getDailyKLine?symbol=${symbol}&_=${Date.now()}`;
 
@@ -123,30 +118,26 @@ export async function fetchSinaFuturesData(symbol: string): Promise<DailyData[]>
 
         if (!response.ok) {
             console.error(`Sina API error for ${symbol}: ${response.status} ${response.statusText}`);
-            return [];
+            throw new Error(`HTTP Error ${response.status}`);
         }
 
         const text = await response.text();
 
-        // Log the first few characters to trace what we got (debug only)
-        // console.log(`Sina response preview: ${text.substring(0, 100)}...`);
-
         // The response is JSONP: var _B0=([...])
         // It might be split across lines or formatted differently
-        const jsonMatch = text.match(/=\s*(\[.*\])/s); // Use 's' flag for dot matches newline
+        const jsonMatch = text.match(/_B0\s*=\s*(\[[\s\S]*?\])/) || text.match(/=\s*(\[.*\])/s);
         const jsonStr = jsonMatch?.[1];
 
         if (!jsonStr) {
             console.error(`Sina data format mismatch. content: ${text.substring(0, 100)}...`);
-            return [];
+            throw new Error("Format Error");
         }
 
         const data = JSON.parse(jsonStr);
-        // Data format: { d: "2023-01-01", o: "...", h: "...", l: "...", c: "...", v: "..." }
 
         if (!Array.isArray(data)) {
             console.error("Sina data is not an array");
-            return [];
+            throw new Error("Format Error");
         }
 
         console.log(`Sina fetched ${data.length} records for ${symbol}`);
@@ -154,11 +145,16 @@ export async function fetchSinaFuturesData(symbol: string): Promise<DailyData[]>
         return data.map((item: any) => ({
             date: item.d,
             close: parseFloat(item.c),
-            // No basis for Sina futures usually, unless calculated elsewhere
         }));
 
     } catch (err) {
         console.error(`Error fetching Sina data (${symbol}):`, err);
-        return [];
+        console.warn(`⚠️ Using local fallback data for ${symbol} due to API failure.`);
+        // Fallback to local data
+        // We cast to any[] first because JSON import might be inferred as specific shape
+        return (fallbackB0 as any[]).map(item => ({
+            date: item.date,
+            close: item.close
+        }));
     }
 }
