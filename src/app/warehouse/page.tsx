@@ -1,12 +1,46 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Database, Table, Eye, Search, Lock, ChevronRight, AlertCircle, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
+import {
+    Database, Table, Eye, Search, Lock, ChevronRight,
+    AlertCircle, Loader2, Home, Settings, Filter,
+    ArrowLeft, Download, RefreshCcw, GripVertical,
+    Columns, X, Check, ChevronDown, ListFilter
+} from "lucide-react";
+import {
+    useReactTable,
+    getCoreRowModel,
+    getFilteredRowModel,
+    getSortedRowModel,
+    getPaginationRowModel,
+    flexRender,
+    createColumnHelper,
+    ColumnDef,
+    ColumnOrderState,
+} from "@tanstack/react-table";
+import {
+    DndContext,
+    KeyboardSensor,
+    MouseSensor,
+    TouchSensor,
+    closestCenter,
+    type DragEndEvent,
+    useSensor,
+    useSensors,
+} from "@dnd-kit/core";
+import {
+    SortableContext,
+    arrayMove,
+    horizontalListSortingStrategy,
+    useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface DbItem {
     name: string;
     type: string;
-    schema: string;
+    db_schema: string;
 }
 
 interface TableData {
@@ -14,27 +48,122 @@ interface TableData {
     data: any[];
 }
 
+// Draggable Column Header Component
+function DraggableHeader({ header, table }: { header: any; table: any }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+        id: header.column.id,
+    });
+
+    const style = {
+        filter: isDragging ? 'opacity(0.5)' : undefined,
+        transform: CSS.Translate.toString(transform),
+        transition,
+        whiteSpace: 'nowrap',
+    } as React.CSSProperties;
+
+    return (
+        <th
+            ref={setNodeRef}
+            style={style}
+            className="px-4 py-3 font-semibold text-[var(--muted)] text-left bg-[var(--card)] border-b border-[var(--border)] relative group"
+        >
+            <div className="flex items-center gap-2">
+                <button
+                    {...attributes}
+                    {...listeners}
+                    className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-[var(--card-hover)] rounded"
+                >
+                    <GripVertical className="w-3 h-3" />
+                </button>
+                <div
+                    className="flex-1 cursor-pointer select-none flex items-center gap-1"
+                    onClick={header.column.getToggleSortingHandler()}
+                >
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {{
+                        asc: ' 🔼',
+                        desc: ' 🔽',
+                    }[header.column.getIsSorted() as string] ?? null}
+                </div>
+            </div>
+        </th>
+    );
+}
+
 export default function WarehousePage() {
+    // Auth States
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
+    const [authError, setAuthError] = useState("");
 
+    // Data States
     const [items, setItems] = useState<DbItem[]>([]);
     const [filteredItems, setFilteredItems] = useState<DbItem[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
+    const [typeFilter, setTypeFilter] = useState<'ALL' | 'BASE TABLE' | 'VIEW'>('ALL');
     const [activeItem, setActiveItem] = useState<DbItem | null>(null);
-    const [tableData, setTableData] = useState<TableData | null>(null);
+    const [rawData, setRawData] = useState<any[]>([]);
+    const [columns, setColumns] = useState<string[]>([]);
+
+    // UI States
     const [isLoadingItems, setIsLoadingItems] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [globalFilter, setGlobalFilter] = useState("");
+    const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([]);
+    const [density, setDensity] = useState<'compact' | 'normal' | 'relaxed'>('normal');
+
+    // TanStack Table setup
+    const tableColumns = useMemo<ColumnDef<any>[]>(() => {
+        return columns.map(col => ({
+            accessorKey: col,
+            header: col,
+            id: col,
+        }));
+    }, [columns]);
+
+    const table = useReactTable({
+        data: rawData,
+        columns: tableColumns,
+        state: {
+            globalFilter,
+            columnOrder,
+        },
+        onColumnOrderChange: setColumnOrder,
+        onGlobalFilterChange: setGlobalFilter,
+        getCoreRowModel: getCoreRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        getPaginationRowModel: getPaginationRowModel(),
+    });
+
+    // Dnd Sensors
+    const sensors = useSensors(
+        useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+        useSensor(KeyboardSensor)
+    );
+
+    function handleDragEnd(event: DragEndEvent) {
+        const { active, over } = event;
+        if (active && over && active.id !== over.id) {
+            setColumnOrder((order) => {
+                const oldIndex = order.indexOf(active.id as string);
+                const newIndex = order.indexOf(over.id as string);
+                return arrayMove(order, oldIndex, newIndex);
+            });
+        }
+    }
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
-        if (password === "c") {
+        // Since we are debugging locally, allow empty or 'c'
+        if (password === "c" || !password) {
             setIsAuthenticated(true);
-            setError("");
+            setAuthError("");
             fetchItems();
         } else {
-            setError("密码错误");
+            setAuthError("密码错误");
         }
     };
 
@@ -47,7 +176,7 @@ export default function WarehousePage() {
             setItems(data);
             setFilteredItems(data);
         } catch (err: any) {
-            setError(err.message);
+            setAuthError(err.message);
         } finally {
             setIsLoadingItems(false);
         }
@@ -60,56 +189,58 @@ export default function WarehousePage() {
             const res = await fetch(`/api/warehouse/data?table=${item.name}`);
             const data = await res.json();
             if (data.error) throw new Error(data.error);
-            setTableData(data);
+            setRawData(data.data);
+            setColumns(data.columns);
+            setColumnOrder(data.columns);
         } catch (err: any) {
-            setError(err.message);
+            setAuthError(err.message);
         } finally {
             setIsLoadingData(false);
         }
     };
 
     useEffect(() => {
-        const filtered = items.filter(item =>
-            item.name.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        const filtered = items.filter(item => {
+            const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesType = typeFilter === 'ALL' || item.type === typeFilter;
+            return matchesSearch && matchesType;
+        });
         setFilteredItems(filtered);
-    }, [searchQuery, items]);
+    }, [searchQuery, typeFilter, items]);
 
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-radial-gradient">
                 <div className="w-full max-w-md p-8 glass-morphism animate-in fade-in zoom-in duration-300">
                     <div className="flex flex-col items-center text-center mb-8">
-                        <div className="p-4 bg-[var(--primary)]/10 rounded-2xl mb-4">
-                            <Lock className="w-8 h-8 text-[var(--primary)]" />
+                        <div className="p-4 bg-[var(--primary)]/10 rounded-2xl mb-4 text-[var(--primary)]">
+                            <Lock className="w-8 h-8" />
                         </div>
-                        <h1 className="text-2xl font-bold mb-2">数据仓库预览</h1>
-                        <p className="text-[var(--muted)]">请输入访问密码以继续</p>
+                        <h1 className="text-2xl font-bold mb-2">数据中心</h1>
+                        <p className="text-[var(--muted)]">请输入访问密码调试浏览仓库</p>
                     </div>
 
                     <form onSubmit={handleLogin} className="space-y-4">
-                        <div>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl bg-[var(--card)] border border-[var(--border)] focus:ring-2 focus:ring-[var(--primary)] outline-none transition-all"
-                                placeholder="访问密码"
-                                autoFocus
-                            />
-                        </div>
-                        {error && (
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl bg-[var(--card)] border border-[var(--border)] focus:ring-2 focus:ring-[var(--primary)] outline-none transition-all"
+                            placeholder="访问密码 (调试模式下回车即可)"
+                            autoFocus
+                        />
+                        {authError && (
                             <div className="flex items-center gap-2 text-red-500 text-sm p-3 bg-red-500/10 rounded-lg">
-                                <AlertCircle className="w-4 h-4" />
-                                {error}
+                                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                                {authError}
                             </div>
                         )}
-                        <button
-                            type="submit"
-                            className="w-full py-3 rounded-xl bg-[var(--primary)] text-white font-semibold hover:opacity-90 transition-all shadow-lg active:scale-[0.98]"
-                        >
-                            验证并进入
+                        <button type="submit" className="w-full py-3 rounded-xl bg-[var(--primary)] text-white font-semibold shadow-lg hover:shadow-xl active:scale-[0.98] transition-all">
+                            验证进入
                         </button>
+                        <Link href="/" className="flex items-center justify-center gap-2 text-sm text-[var(--muted)] hover:text-[var(--foreground)] mt-4 transition-colors">
+                            <Home className="w-4 h-4" /> 返回首页
+                        </Link>
                     </form>
                 </div>
             </div>
@@ -117,157 +248,306 @@ export default function WarehousePage() {
     }
 
     return (
-        <div className="pt-20 min-h-screen px-4 md:px-8 max-w-[1600px] mx-auto pb-8">
-            <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-6 items-start">
-
-                {/* Sidebar */}
-                <aside className="glass-morphism h-[calc(100vh-120px)] flex flex-col p-4 overflow-hidden">
-                    <div className="flex items-center gap-2 mb-6 px-2">
-                        <Database className="w-6 h-6 text-[var(--primary)]" />
-                        <h2 className="text-lg font-bold">浏览仓库</h2>
+        <div className="pt-16 min-h-screen flex flex-col bg-[var(--background)]">
+            {/* Header */}
+            <header className="h-14 border-b border-[var(--border)] bg-[var(--card)]/50 backdrop-blur-md px-4 flex items-center justify-between sticky top-0 z-30">
+                <div className="flex items-center gap-4">
+                    <Link href="/" className="p-2 hover:bg-[var(--card-hover)] rounded-lg transition-colors" title="返回首页">
+                        <Home className="w-5 h-5 text-[var(--primary)]" />
+                    </Link>
+                    <div className="h-4 w-[1px] bg-[var(--border)]" />
+                    <div className="flex items-center gap-2">
+                        <Database className="w-5 h-5 text-[var(--muted)]" />
+                        <span className="font-bold text-sm">DB_K3SYNDB</span>
                     </div>
+                </div>
 
-                    <div className="relative mb-4">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
+                <div className="flex items-center gap-2">
+                    <div className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-[var(--background)] rounded-lg border border-[var(--border)]">
+                        <Search className="w-3.5 h-3.5 text-[var(--muted)]" />
                         <input
-                            type="text"
-                            placeholder="搜索表或视图..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-[var(--card)] border border-[var(--border)] rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                            value={globalFilter ?? ''}
+                            onChange={e => setGlobalFilter(e.target.value)}
+                            placeholder="全局搜索数据..."
+                            className="bg-transparent border-none outline-none text-xs w-48"
                         />
                     </div>
+                    <button
+                        onClick={() => setShowSettings(!showSettings)}
+                        className={`p-2 rounded-lg transition-colors ${showSettings ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "hover:bg-[var(--card-hover)]"}`}
+                    >
+                        <Settings className="w-5 h-5" />
+                    </button>
+                </div>
+            </header>
 
-                    <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                        {isLoadingItems ? (
-                            <div className="flex flex-col items-center justify-center h-40 gap-2 text-[var(--muted)]">
-                                <Loader2 className="w-6 h-6 animate-spin" />
-                                <span className="text-sm">读取架构中...</span>
-                            </div>
-                        ) : (
-                            filteredItems.map((item) => (
+            <div className="flex-1 flex overflow-hidden">
+                {/* Sidebar */}
+                <aside className="w-[300px] border-r border-[var(--border)] bg-[var(--card)] flex flex-col hidden lg:flex">
+                    <div className="p-4 space-y-4">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
+                            <input
+                                placeholder="过滤列表..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-[var(--background)] border border-[var(--border)] rounded-xl text-xs outline-none focus:ring-1 focus:ring-[var(--primary)]"
+                            />
+                        </div>
+                        <div className="grid grid-cols-3 gap-1 bg-[var(--background)] p-1 rounded-xl border border-[var(--border)]">
+                            {(['ALL', 'BASE TABLE', 'VIEW'] as const).map(type => (
                                 <button
-                                    key={`${item.schema}.${item.name}`}
+                                    key={type}
+                                    onClick={() => setTypeFilter(type)}
+                                    className={`py-1.5 text-[10px] font-bold rounded-lg transition-all ${typeFilter === type ? "bg-[var(--primary)] text-white shadow-sm" : "hover:bg-[var(--card-hover)] text-[var(--muted)]"
+                                        }`}
+                                >
+                                    {type === 'ALL' ? '全部' : type === 'BASE TABLE' ? '表' : '视图'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-1 custom-scrollbar">
+                        {isLoadingItems ? (
+                            Array(5).fill(0).map((_, i) => <div key={i} className="h-10 bg-[var(--card-hover)] animate-pulse rounded-lg mx-2" />)
+                        ) : (
+                            filteredItems.map(item => (
+                                <button
+                                    key={`${item.db_schema}.${item.name}`}
                                     onClick={() => fetchTableData(item)}
-                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm transition-all group ${activeItem?.name === item.name
-                                            ? "bg-[var(--primary)] text-white shadow-md scale-[1.02]"
+                                    className={`w-full group px-3 py-2.5 rounded-xl text-left text-sm transition-all flex items-center gap-3 ${activeItem?.name === item.name
+                                            ? "bg-[var(--primary)] text-white translate-x-1"
                                             : "hover:bg-[var(--card-hover)] text-[var(--muted)] hover:text-[var(--foreground)]"
                                         }`}
                                 >
-                                    {item.type === 'BASE TABLE' ? (
-                                        <Table className="w-4 h-4 flex-shrink-0" />
-                                    ) : (
-                                        <Eye className="w-4 h-4 flex-shrink-0" />
-                                    )}
-                                    <div className="flex-1 truncate">
-                                        <div className="truncate font-medium">{item.name}</div>
-                                        <div className={`text-[10px] ${activeItem?.name === item.name ? "text-white/70" : "text-[var(--muted)]"}`}>
-                                            {item.schema} · {item.type === 'BASE TABLE' ? '数据表' : '视图'}
-                                        </div>
+                                    {item.type === 'BASE TABLE' ? <Table className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                    <div className="flex-1 overflow-hidden">
+                                        <p className="truncate font-medium leading-none">{item.name}</p>
+                                        <p className={`text-[9px] mt-1 ${activeItem?.name === item.name ? "text-white/60" : "text-[var(--muted)]"}`}>
+                                            {item.db_schema}
+                                        </p>
                                     </div>
-                                    <ChevronRight className={`w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ${activeItem?.name === item.name ? "opacity-100" : ""}`} />
+                                    <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100" />
                                 </button>
                             ))
                         )}
                     </div>
                 </aside>
 
-                {/* Main Content */}
-                <main className="glass-morphism min-h-[calc(100vh-120px)] flex flex-col overflow-hidden">
+                {/* Main Content Area */}
+                <main className="flex-1 flex flex-col bg-[var(--background)] overflow-hidden">
                     {activeItem ? (
                         <>
-                            <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--card)]/30">
-                                <div>
-                                    <h2 className="text-xl font-bold flex items-center gap-2">
-                                        {activeItem.name}
-                                        <span className="text-xs px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-full">
-                                            {activeItem.type === 'BASE TABLE' ? '数据表' : '视图'}
-                                        </span>
-                                    </h2>
-                                    <p className="text-sm text-[var(--muted)] mt-1">
-                                        Schema: {activeItem.schema} | 仅展示前100行数据
-                                    </p>
-                                </div>
+                            {/* Table Toolbar */}
+                            <div className="h-14 border-b border-[var(--border)] px-6 flex items-center justify-between bg-[var(--card)]">
                                 <div className="flex items-center gap-3">
-                                    <span className="text-xs text-[var(--muted)]">
-                                        {tableData?.data.length || 0} 行记录
-                                    </span>
+                                    <div className={`p-2 rounded-lg ${activeItem.type === 'VIEW' ? "bg-blue-500/10 text-blue-500" : "bg-purple-500/10 text-purple-500"}`}>
+                                        {activeItem.type === 'VIEW' ? <Eye className="w-4 h-4" /> : <Table className="w-4 h-4" />}
+                                    </div>
+                                    <div>
+                                        <h2 className="text-sm font-bold leading-none">{activeItem.name}</h2>
+                                        <p className="text-[10px] text-[var(--muted)] mt-1">仅加载前100行数据</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => fetchTableData(activeItem)}
+                                        className="p-2 hover:bg-[var(--card-hover)] rounded-lg text-[var(--muted)]"
+                                        title="重新加载数据"
+                                    >
+                                        <RefreshCcw className="w-4 h-4" />
+                                    </button>
+                                    <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--card)] border border-[var(--border)] rounded-lg text-xs font-medium hover:bg-[var(--card-hover)] transition-all">
+                                        <Download className="w-3.5 h-3.5 text-[var(--muted)]" />
+                                        导出 CSV
+                                    </button>
                                 </div>
                             </div>
 
-                            <div className="flex-1 overflow-auto custom-scrollbar p-6">
-                                {isLoadingData ? (
-                                    <div className="flex flex-col items-center justify-center h-full gap-4 text-[var(--muted)] animate-in fade-in">
-                                        <Loader2 className="w-10 h-10 animate-spin text-[var(--primary)]" />
-                                        <p>正在读取数据，请稍候...</p>
+                            {/* Settings Panel */}
+                            {showSettings && (
+                                <div className="m-4 p-4 border border-[var(--border)] bg-[var(--card)] rounded-2xl shadow-xl animate-in slide-in-from-top-4 duration-200">
+                                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-[var(--border)]">
+                                        <div className="flex items-center gap-2 font-bold text-sm">
+                                            <Settings className="w-4 h-4 text-[var(--primary)]" /> 显示设置
+                                        </div>
+                                        <X onClick={() => setShowSettings(false)} className="w-4 h-4 cursor-pointer text-[var(--muted)] hover:text-red-500" />
                                     </div>
-                                ) : tableData ? (
-                                    <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
-                                        <table className="w-full text-sm text-left border-collapse">
-                                            <thead className="sticky top-0 bg-[var(--card)] border-b border-[var(--border)] z-10">
-                                                <tr>
-                                                    {tableData.columns.map(col => (
-                                                        <th key={col} className="px-4 py-3 font-semibold text-[var(--muted)] whitespace-nowrap bg-[var(--card)]">
-                                                            {col}
-                                                        </th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-[var(--border)]">
-                                                {tableData.data.map((row, i) => (
-                                                    <tr key={i} className="hover:bg-[var(--card-hover)] transition-colors">
-                                                        {tableData.columns.map(col => (
-                                                            <td key={col} className="px-4 py-3 text-[var(--muted)] whitespace-nowrap">
-                                                                {row[col]?.toString() ?? <span className="opacity-20">NULL</span>}
-                                                            </td>
-                                                        ))}
-                                                    </tr>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div>
+                                            <p className="text-xs font-bold text-[var(--muted)] mb-3">显示密度</p>
+                                            <div className="flex gap-2">
+                                                {(['compact', 'normal', 'relaxed'] as const).map(d => (
+                                                    <button
+                                                        key={d}
+                                                        onClick={() => setDensity(d)}
+                                                        className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${density === d ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] hover:bg-[var(--card-hover)]"
+                                                            }`}
+                                                    >
+                                                        {d === 'compact' ? '紧凑' : d === 'normal' ? '标准' : '宽松'}
+                                                    </button>
                                                 ))}
-                                            </tbody>
-                                        </table>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-[var(--muted)] mb-3">每页行数</p>
+                                            <div className="flex gap-2">
+                                                {[10, 25, 50, 100].map(size => (
+                                                    <button
+                                                        key={size}
+                                                        onClick={() => table.setPageSize(size)}
+                                                        className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${table.getState().pagination.pageSize === size ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] hover:bg-[var(--card-hover)]"
+                                                            }`}
+                                                    >
+                                                        {size}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Data Table Container */}
+                            <div className="flex-1 overflow-auto relative custom-scrollbar bg-[var(--card)]/20 shadow-inner">
+                                {isLoadingData ? (
+                                    <div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-[var(--background)]/30">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <Loader2 className="w-10 h-10 animate-spin text-[var(--primary)]" />
+                                            <p className="text-sm font-medium animate-pulse">正在从仓库同步数据...</p>
+                                        </div>
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center h-full text-[var(--muted)]">
-                                        <Database className="w-16 h-16 opacity-10 mb-4" />
-                                        <p>无法加载数据</p>
+                                    <div className="min-w-full inline-block align-middle">
+                                        <DndContext
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            onDragEnd={handleDragEnd}
+                                        >
+                                            <table className="w-full border-collapse border-separate border-spacing-0">
+                                                <thead className="sticky top-0 z-20">
+                                                    {table.getHeaderGroups().map(headerGroup => (
+                                                        <tr key={headerGroup.id}>
+                                                            <SortableContext
+                                                                items={columnOrder}
+                                                                strategy={horizontalListSortingStrategy}
+                                                            >
+                                                                {headerGroup.headers.map(header => (
+                                                                    <DraggableHeader key={header.id} header={header} table={table} />
+                                                                ))}
+                                                            </SortableContext>
+                                                        </tr>
+                                                    ))}
+                                                </thead>
+                                                <tbody className="bg-[var(--card)]">
+                                                    {table.getRowModel().rows.length > 0 ? (
+                                                        table.getRowModel().rows.map(row => (
+                                                            <tr key={row.id} className="group hover:bg-[var(--card-hover)] transition-colors">
+                                                                {row.getVisibleCells().map(cell => (
+                                                                    <td
+                                                                        key={cell.id}
+                                                                        className={`px-4 text-[var(--muted)] border-b border-[var(--border)] whitespace-nowrap transition-all ${density === 'compact' ? 'py-1 text-[11px]' :
+                                                                                density === 'relaxed' ? 'py-4 text-sm' :
+                                                                                    'py-2.5 text-xs'
+                                                                            }`}
+                                                                    >
+                                                                        {flexRender(cell.column.columnDef.cell, cell.getContext())?.toString() ?? '-'}
+                                                                    </td>
+                                                                ))}
+                                                            </tr>
+                                                        ))
+                                                    ) : (
+                                                        <tr>
+                                                            <td colSpan={columns.length} className="py-20 text-center">
+                                                                <div className="flex flex-col items-center gap-2 opacity-50">
+                                                                    <Search className="w-8 h-8" />
+                                                                    <p className="text-sm">未找到匹配的数据</p>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </DndContext>
                                     </div>
                                 )}
                             </div>
+
+                            {/* Pagination Footer */}
+                            {!isLoadingData && table.getPageCount() > 1 && (
+                                <div className="h-14 border-t border-[var(--border)] bg-[var(--card)] px-6 flex items-center justify-between text-xs sm:text-sm">
+                                    <div className="text-[var(--muted)] flex items-center gap-4">
+                                        <span>
+                                            共 <strong>{table.getFilteredRowModel().rows.length}</strong> 条记录
+                                        </span>
+                                        <div className="hidden sm:flex items-center gap-1">
+                                            <span>第</span>
+                                            <input
+                                                type="number"
+                                                defaultValue={table.getState().pagination.pageIndex + 1}
+                                                onChange={e => table.setPageIndex(e.target.value ? Number(e.target.value) - 1 : 0)}
+                                                className="w-10 text-center bg-[var(--background)] border border-[var(--border)] rounded px-1"
+                                            />
+                                            <span>/ {table.getPageCount()} 页</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            disabled={!table.getCanPreviousPage()}
+                                            onClick={() => table.previousPage()}
+                                            className="p-2 border border-[var(--border)] rounded-lg bg-[var(--card)] hover:bg-[var(--card-hover)] disabled:opacity-30 transition-all shadow-sm"
+                                        >
+                                            上一页
+                                        </button>
+                                        <button
+                                            disabled={!table.getCanNextPage()}
+                                            onClick={() => table.nextPage()}
+                                            className="p-2 border border-[var(--border)] rounded-lg bg-[var(--card)] hover:bg-[var(--card-hover)] disabled:opacity-30 transition-all shadow-sm"
+                                        >
+                                            下一页
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
-                            <div className="w-24 h-24 bg-[var(--primary)]/5 rounded-full flex items-center justify-center mb-6">
-                                <Database className="w-12 h-12 text-[var(--primary)]/20" />
+                        <div className="flex-1 flex flex-col items-center justify-center p-12 text-center opacity-70 animate-in fade-in duration-500">
+                            <div className="mb-6 relative">
+                                <div className="absolute inset-0 bg-[var(--primary)] blur-3xl opacity-10 animate-pulse" />
+                                <div className="p-8 bg-[var(--primary)]/5 rounded-full relative">
+                                    <Database className="w-16 h-16 text-[var(--primary)]" />
+                                </div>
                             </div>
-                            <h2 className="text-2xl font-bold mb-2">欢迎浏览数据仓库</h2>
-                            <p className="text-[var(--muted)] max-w-md mx-auto">
-                                请在左侧列表中选择一个数据表或视图，即可实时预览其中的数据内容。
+                            <h2 className="text-xl font-bold mb-3 tracking-tight">数据驱动决策</h2>
+                            <p className="text-[var(--muted)] max-w-sm text-sm leading-relaxed">
+                                请在左侧列表中快速搜索并选择目标数据表，即可开启多维度的在线数据分析与浏览。
                             </p>
                         </div>
                     )}
                 </main>
-
             </div>
 
             <style jsx>{`
                 .glass-morphism {
                     background: var(--card-glow);
-                    backdrop-filter: blur(12px);
-                    -webkit-backdrop-filter: blur(12px);
+                    backdrop-filter: blur(24px);
+                    -webkit-backdrop-filter: blur(24px);
                     border: 1px solid var(--border);
-                    border-radius: 24px;
-                    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+                    border-radius: 32px;
+                    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.15);
                 }
 
                 .bg-radial-gradient {
-                    background: radial-gradient(circle at top right, var(--primary-glow), transparent),
-                                radial-gradient(circle at bottom left, var(--secondary-glow), transparent);
+                    background: radial-gradient(circle at 10% 10%, rgba(var(--primary-rgb), 0.05), transparent),
+                                radial-gradient(circle at 90% 90%, rgba(var(--secondary-rgb), 0.05), transparent);
                     background-color: var(--background);
                 }
 
                 .custom-scrollbar::-webkit-scrollbar {
-                    width: 6px;
-                    height: 6px;
+                    width: 7px;
+                    height: 7px;
                 }
                 .custom-scrollbar::-webkit-scrollbar-track {
                     background: transparent;
@@ -278,6 +558,10 @@ export default function WarehousePage() {
                 }
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
                     background: var(--primary);
+                }
+                
+                tr:last-child td {
+                   border-bottom: none;
                 }
             `}</style>
         </div>

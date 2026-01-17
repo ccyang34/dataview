@@ -10,7 +10,7 @@ export async function GET() {
             SELECT 
                 TABLE_NAME as name, 
                 TABLE_TYPE as type,
-                TABLE_SCHEMA as [schema]
+                TABLE_SCHEMA as db_schema
             FROM INFORMATION_SCHEMA.TABLES
             ORDER BY TABLE_TYPE, TABLE_NAME
         `);
