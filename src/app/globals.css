@@ -37,7 +37,31 @@
   --radius-xl: 1rem;
 }
 
-/* 深色主题 */
+/* 深色主题 - 支持系统跟随 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: #60A5FA;
+    --primary-hover: #3B82F6;
+    --secondary: #34D399;
+    --accent: #FBBF24;
+    --danger: #F87171;
+    
+    --background: #0F172A;
+    --foreground: #F1F5F9;
+    --card: #1E293B;
+    --card-hover: #334155;
+    --border: #334155;
+    --muted: #94A3B8;
+    --muted-foreground: #64748B;
+    
+    --chart-1: #60A5FA;
+    --chart-2: #34D399;
+    --chart-3: #FBBF24;
+    --chart-4: #A78BFA;
+    --chart-5: #F472B6;
+  }
+}
+
 .dark, [data-theme="dark"] {
   --primary: #60A5FA;
   --primary-hover: #3B82F6;

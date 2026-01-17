@@ -427,10 +427,10 @@ export default function Home() {
                   <span className="w-1.5 sm:w-2 h-4 sm:h-5 bg-[var(--accent)] rounded-full" />
                   核心宽基指数累计收益
                 </h3>
-                <div className="flex gap-2">
+                <div className="flex gap-x-3 gap-y-1 flex-wrap justify-end max-w-[60%] sm:max-w-none">
                   {comparisonData.map((s, i) => (
-                    <div key={i} className="flex items-center gap-1 text-[9px] sm:text-xs">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#2962FF', '#E91E63', '#F59E0B', '#10B981'][i] }} />
+                    <div key={i} className="flex items-center gap-1 text-[9px] sm:text-xs whitespace-nowrap">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ['#2962FF', '#8B5CF6', '#E91E63', '#F59E0B', '#10B981', '#06B6D4'][i % 6] }} />
                       <span className="text-[var(--muted)]">{s.name}</span>
                       <span className={`font-bold ${s.currentPct >= 0 ? 'text-[#ff4d4f]' : 'text-[#52c41a]'}`}>
                         {s.currentPct >= 0 ? '+' : ''}{s.currentPct.toFixed(2)}%
@@ -439,7 +439,7 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-              <div className="p-4 h-[300px]">
+              <div className="p-4">
                 {comparisonData.length > 0 ? (
                   <ComparisonChart data={comparisonData} height={300} />
                 ) : (
@@ -487,7 +487,7 @@ export default function Home() {
                 </h3>
                 <span className="text-[9px] bg-[var(--danger)]/10 text-[var(--danger)] px-1.5 py-0.5 rounded animate-pulse">LIVE</span>
               </div>
-              <div className="space-y-4 overflow-y-auto flex-1 pr-2 custom-scrollbar">
+              <div className="space-y-4 overflow-y-auto flex-1 pl-2 pr-2 custom-scrollbar">
                 {news.map((n, i) => (
                   <div key={n.id} className="relative pl-4 border-l border-[var(--border)] pb-1 last:pb-0">
                     <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 bg-[var(--card)] border border-[var(--primary)] rounded-full">

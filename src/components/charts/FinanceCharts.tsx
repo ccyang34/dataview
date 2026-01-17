@@ -26,6 +26,22 @@ interface KLineChartProps {
     showVolume?: boolean;
 }
 
+// 格式化日期辅助函数
+const formatDate = (time: string | number | Date) => {
+    // 如果是字符串 'yyyy-MM-dd'，直接截取年月
+    if (typeof time === 'string') {
+        const parts = time.split('-');
+        if (parts.length >= 2) {
+            return `${parts[0]}-${parts[1]}`;
+        }
+    }
+
+    // 处理时间戳或Date对象
+    const date = new Date(typeof time === 'number' ? time * 1000 : time);
+    if (isNaN(date.getTime())) return String(time);
+    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+};
+
 export function KLineChart({ data, height = 400, showVolume = true }: KLineChartProps) {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
@@ -54,6 +70,10 @@ export function KLineChart({ data, height = 400, showVolume = true }: KLineChart
                 background: { color: bgColor },
                 textColor: textColor,
             },
+            localization: {
+                locale: 'zh-CN',
+                dateFormat: 'yyyy-MM-dd',
+            },
             grid: {
                 vertLines: { color: borderColor, visible: false },
                 horzLines: { color: borderColor, visible: false },
@@ -73,6 +93,8 @@ export function KLineChart({ data, height = 400, showVolume = true }: KLineChart
                 timeVisible: true,
                 secondsVisible: false,
                 rightOffset: 5,
+                tickMarkFormatter: formatDate,
+                ticksVisible: true, // 显示刻度
             },
             handleScroll: {
                 mouseWheel: true,
@@ -248,6 +270,8 @@ export function TimelineChart({ data, prevClose, height = 300 }: TimelineChartPr
                 borderColor: borderColor,
                 timeVisible: true,
                 secondsVisible: false,
+                tickMarkFormatter: formatDate,
+                ticksVisible: true,
             },
         });
 
@@ -369,6 +393,10 @@ export function ComparisonChart({ data, height = 300 }: ComparisonChartProps) {
                 background: { color: bgColor },
                 textColor: textColor,
             },
+            localization: {
+                locale: 'zh-CN',
+                dateFormat: 'yyyy-MM-dd',
+            },
             grid: {
                 vertLines: { visible: false },
                 horzLines: { color: borderColor, style: 1 },
@@ -384,6 +412,9 @@ export function ComparisonChart({ data, height = 300 }: ComparisonChartProps) {
                 borderColor: borderColor,
                 timeVisible: true,
                 secondsVisible: false,
+                rightOffset: 50,
+                tickMarkFormatter: formatDate,
+                ticksVisible: true, // 显示刻度
             },
             crosshair: {
                 mode: 1, // CrosshairMode.Normal
@@ -393,7 +424,7 @@ export function ComparisonChart({ data, height = 300 }: ComparisonChartProps) {
         chartRef.current = chart;
 
         // Beautiful colors for lines
-        const colors = ['#2962FF', '#E91E63', '#F59E0B', '#10B981', '#8B5CF6'];
+        const colors = ['#2962FF', '#8B5CF6', '#E91E63', '#F59E0B', '#10B981', '#06B6D4'];
 
         data.forEach((series, index) => {
             const lineSeries = chart.addSeries(LineSeries, {
