@@ -125,7 +125,8 @@ export async function fetchSinaFuturesData(symbol: string): Promise<DailyData[]>
 
         // The response is JSONP: var _B0=([...])
         // It might be split across lines or formatted differently
-        const jsonMatch = text.match(/_B0\s*=\s*(\[[\s\S]*?\])/) || text.match(/=\s*(\[.*\])/s);
+        // Using [\s\S] to match newlines instead of 's' flag for ES compatibility
+        const jsonMatch = text.match(/_B0\s*=\s*(\[[\s\S]*?\])/) || text.match(/=\s*(\[[\s\S]*\])/);
         const jsonStr = jsonMatch?.[1];
 
         if (!jsonStr) {
