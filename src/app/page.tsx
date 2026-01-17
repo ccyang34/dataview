@@ -17,6 +17,7 @@ import {
   DonutChart,
   KLineChart,
 } from "@/components/charts";
+import TradingViewWidget from "@/components/charts/TradingViewWidget";
 import Link from "next/link";
 
 interface MarketIndex {
@@ -37,19 +38,38 @@ interface StatCardProps {
 }
 
 function StatCard({ title, value, change, icon, isStock = true }: StatCardProps) {
+  const [flash, setFlash] = useState<"up" | "down" | null>(null);
+  const [prevValue, setPrevValue] = useState(value);
+
   const isPositive = change >= 0;
-  // Financial coloring: A-Share style (Red for UP, Green for DOWN)
   const colorClass = isPositive ? "text-[#ff4d4f]" : "text-[#52c41a]";
   const bgClass = isPositive ? "bg-[#ff4d4f]/10" : "bg-[#52c41a]/10";
   const Icon = isPositive ? TrendingUp : TrendingDown;
 
+  // Real-time flash effect when value changes
+  useEffect(() => {
+    if (value !== prevValue) {
+      setFlash(parseFloat(String(value)) > parseFloat(String(prevValue)) ? "up" : "down");
+      setPrevValue(value);
+      const timer = setTimeout(() => setFlash(null), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [value, prevValue]);
+
   return (
-    <div className="card p-2 sm:p-5 group hover:shadow-lg transition-all duration-300">
+    <div className={`card p-2 sm:p-5 group hover:shadow-lg transition-all duration-500 border-2 ${flash === "up" ? "border-[#ff4d4f]/50 shadow-[0_0_15px_rgba(255,77,79,0.2)]" :
+      flash === "down" ? "border-[#52c41a]/50 shadow-[0_0_15px_rgba(82,196,26,0.2)]" :
+        "border-transparent"
+      }`}>
       <div className="flex items-start justify-between gap-1 sm:gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-[10px] sm:text-xs font-medium text-[var(--muted)] mb-0.5 sm:mb-1 truncate">{title}</p>
           <div className="flex items-baseline gap-0.5 sm:gap-2">
-            <p className="text-sm sm:text-xl font-bold tracking-tight truncate">{typeof value === 'number' ? value.toLocaleString(undefined, { minimumFractionDigits: 1 }) : value}</p>
+            <p className={`text-sm sm:text-xl font-bold tracking-tight truncate transition-colors duration-300 ${flash === "up" ? "text-[#ff4d4f]" : flash === "down" ? "text-[#52c41a]" : ""
+              }`}>
+              {/* Always show at least 2 decimal places to see micro-movements */}
+              {typeof value === 'number' ? value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : value}
+            </p>
           </div>
           <div className={`flex items-center gap-0.5 sm:gap-1 mt-0.5 sm:mt-2 text-[9px] sm:text-xs font-bold ${colorClass}`}>
             <Icon className="w-2 h-2 sm:w-3 h-3" />
@@ -64,6 +84,20 @@ function StatCard({ title, value, change, icon, isStock = true }: StatCardProps)
   );
 }
 
+// 跑马灯项组件
+function TickerItem({ label, value, change }: { label: string, value: number, change: number }) {
+  const isPositive = change >= 0;
+  return (
+    <div className="flex items-center gap-2 px-4 border-r border-[var(--border)] whitespace-nowrap">
+      <span className="text-[10px] font-medium text-[var(--muted)]">{label}</span>
+      <span className="text-[10px] font-bold font-mono">{value.toLocaleString()}</span>
+      <span className={`text-[10px] font-bold ${isPositive ? 'text-[#ff4d4f]' : 'text-[#52c41a]'}`}>
+        {isPositive ? '↑' : '↓'} {Math.abs(change).toFixed(2)}%
+      </span>
+    </div>
+  );
+}
+
 export default function Home() {
   const [indices, setIndices] = useState<MarketIndex[]>([]);
   const [kdata, setKData] = useState<any[]>([]);
@@ -72,20 +106,17 @@ export default function Home() {
   const [activeK, setActiveK] = useState("sh000001");
 
   const fetchData = async () => {
-    setIsLoading(true);
+    // Keep internal state updated, don't show full loading after first time
     try {
-      const [mRes, kRes, cRes] = await Promise.all([
+      const [mRes, cRes] = await Promise.all([
         fetch('/api/market/indices'),
-        fetch(`/api/market/kline?symbol=${activeK}`),
         fetch('/api/crush-margin')
       ]);
 
       const mData = await mRes.json();
-      const kData = await kRes.json();
       const cData = await cRes.json();
 
       if (mData.success) setIndices(mData.data);
-      if (kData.success) setKData(kData.data);
       if (cData.success && cData.data.length > 0) {
         setCrushLatest(cData.data[cData.data.length - 1]);
       }
@@ -97,16 +128,71 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // Only show global loading on first mount
     fetchData();
-    const timer = setInterval(fetchData, 60000); // Refresh every minute
+    const timer = setInterval(() => {
+      // Silent update
+      fetch('/api/market/indices').then(res => res.json()).then(mData => {
+        if (mData.success) setIndices(mData.data);
+      });
+      fetch('/api/crush-margin').then(res => res.json()).then(cData => {
+        if (cData.success && cData.data.length > 0) {
+          setCrushLatest(cData.data[cData.data.length - 1]);
+        }
+      });
+    }, 3000); // 3 seconds real-time update
     return () => clearInterval(timer);
+  }, []);
+
+  // Update K-line separately when activeK changes or periodically
+  useEffect(() => {
+    const fetchK = async () => {
+      const res = await fetch(`/api/market/kline?symbol=${activeK}`);
+      const kData = await res.json();
+      if (kData.success) setKData(kData.data);
+    };
+    fetchK();
+    const kTimer = setInterval(fetchK, 60000);
   }, [activeK]);
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
       <Navbar />
 
-      <main className="pt-16 sm:pt-20 pb-8 sm:pb-12 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4 sm:space-y-8">
+      {/* 第一部分：官方原厂移植滚动组件 (方案A) */}
+      <div className="fixed top-14 left-0 right-0 z-40 bg-[var(--card)] border-b border-[var(--border)] h-10 overflow-hidden">
+        <iframe
+          src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js?parent=null"
+          title="TradingView Ticker Tape"
+          className="w-full h-full border-none"
+          ref={(el) => {
+            if (el && !el.dataset.loaded) {
+              const script = document.createElement('script');
+              script.src = "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js";
+              script.async = true;
+              script.innerHTML = JSON.stringify({
+                "symbols": [
+                  { "proName": "FOREXCOM:SPX500", "title": "S&P 500" },
+                  { "proName": "FOREXCOM:NSXUSD", "title": "Nasdaq 100" },
+                  { "proName": "FX_IDC:USDCNH", "title": "USD/CNH" },
+                  { "proName": "BITSTAMP:BTCUSD", "title": "Bitcoin" },
+                  { "description": "黄金", "proName": "OANDA:XAUUSD" },
+                  { "description": "原油", "proName": "TVC:USOIL" }
+                ],
+                "showSymbolLogo": true,
+                "colorTheme": "dark",
+                "isTransparent": true,
+                "displayMode": "adaptive",
+                "locale": "zh_CN"
+              });
+              el.parentElement?.appendChild(script);
+              el.remove(); // 移除 placeholder
+            }
+          }}
+        />
+      </div>
+
+      <main className="pt-28 sm:pt-32 pb-8 sm:pb-12 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4 sm:space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div className="space-y-0.5 sm:space-y-1">
@@ -191,12 +277,10 @@ export default function Home() {
                 ))}
               </div>
             </div>
-            <div className="p-2 sm:p-4 flex-1 min-h-[300px] sm:min-h-[400px]">
-              {kdata.length > 0 ? (
-                <KLineChart data={kdata} height={400} />
-              ) : (
-                <div className="flex items-center justify-center h-full opacity-30">加载数据中...</div>
-              )}
+            <div className="flex-1 min-h-[450px] sm:min-h-[500px]">
+              <TradingViewWidget
+                symbol={activeK === 'sh000001' ? 'SSE:000001' : activeK === 'sz399001' ? 'SZSE:399001' : 'SZSE:399006'}
+              />
             </div>
           </div>
 
