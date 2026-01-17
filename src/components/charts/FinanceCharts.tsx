@@ -55,25 +55,39 @@ export function KLineChart({ data, height = 400, showVolume = true }: KLineChart
                 textColor: textColor,
             },
             grid: {
-                vertLines: { color: borderColor },
-                horzLines: { color: borderColor },
+                vertLines: { color: borderColor, visible: false },
+                horzLines: { color: borderColor, visible: false },
             },
             crosshair: {
                 mode: 1,
             },
             rightPriceScale: {
                 borderColor: borderColor,
+                scaleMargins: {
+                    top: 0.1,
+                    bottom: 0.25,
+                },
             },
             timeScale: {
                 borderColor: borderColor,
                 timeVisible: true,
                 secondsVisible: false,
+                rightOffset: 5,
+            },
+            handleScroll: {
+                mouseWheel: true,
+                pressedMouseMove: true,
+            },
+            handleScale: {
+                axisPressedMouseMove: true,
+                mouseWheel: true,
+                pinch: true,
             },
         });
 
         chartRef.current = chart;
 
-        // 添加 K 线 - v5 API
+        // 添加 K 线
         const candlestickSeries = chart.addSeries(CandlestickSeries, {
             upColor: upColor,
             downColor: downColor,
@@ -82,6 +96,23 @@ export function KLineChart({ data, height = 400, showVolume = true }: KLineChart
             wickDownColor: downColor,
             wickUpColor: upColor,
         });
+
+        // 均线辅助函数
+        const calculateSMA = (data: any[], count: number) => {
+            const avg = [];
+            for (let i = 0; i < data.length; i++) {
+                if (i < count - 1) {
+                    avg.push({ time: data[i].time, value: undefined });
+                    continue;
+                }
+                let sum = 0;
+                for (let j = 0; j < count; j++) {
+                    sum += data[i - j].close;
+                }
+                avg.push({ time: data[i].time, value: sum / count });
+            }
+            return avg.filter(d => d.value !== undefined);
+        };
 
         // 转换数据格式
         const chartData = data.map((item) => ({
@@ -94,33 +125,40 @@ export function KLineChart({ data, height = 400, showVolume = true }: KLineChart
 
         candlestickSeries.setData(chartData);
 
+        // 添加均线 SMA5, SMA10, SMA20
+        const sma5Data = calculateSMA(chartData, 5);
+        if (sma5Data.length > 0) {
+            const sma5Series = chart.addSeries(LineSeries, { color: '#2962FF', lineWidth: 1, title: 'MA5' });
+            sma5Series.setData(sma5Data as any);
+        }
+        const sma20Data = calculateSMA(chartData, 20);
+        if (sma20Data.length > 0) {
+            const sma20Series = chart.addSeries(LineSeries, { color: '#E91E63', lineWidth: 1, title: 'MA20' });
+            sma20Series.setData(sma20Data as any);
+        }
+
         // 添加成交量
         if (showVolume) {
             const volumeSeries = chart.addSeries(HistogramSeries, {
                 color: upColor,
-                priceFormat: {
-                    type: "volume",
-                },
+                priceFormat: { type: "volume" },
                 priceScaleId: "",
             });
 
             volumeSeries.priceScale().applyOptions({
-                scaleMargins: {
-                    top: 0.8,
-                    bottom: 0,
-                },
+                scaleMargins: { top: 0.8, bottom: 0 },
             });
 
             const volumeData = data.map((item) => ({
                 time: item.time as Time,
                 value: item.volume || 0,
-                color: item.close >= item.open ? upColor : downColor,
+                color: item.close >= item.open ? `${upColor}88` : `${downColor}88`,
             }));
 
             volumeSeries.setData(volumeData);
         }
 
-        // 自适应
+        // 自适应布局
         chart.timeScale().fitContent();
 
         // 响应式调整
@@ -293,6 +331,121 @@ export function TimelineChart({ data, prevClose, height = 300 }: TimelineChartPr
         <div
             ref={chartContainerRef}
             className="w-full"
+            style={{ height: `${height}px` }}
+        />
+    );
+}
+
+export interface ComparisonChartProps {
+    data: {
+        name: string;
+        currentPct: number;
+        data: { time: string; value: number }[];
+    }[];
+    height?: number;
+}
+
+export function ComparisonChart({ data, height = 300 }: ComparisonChartProps) {
+    const chartContainerRef = useRef<HTMLDivElement>(null);
+    const chartRef = useRef<IChartApi | null>(null);
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    useEffect(() => {
+        if (!isClient || !chartContainerRef.current || data.length === 0) return;
+
+        const computedStyle = getComputedStyle(document.documentElement);
+        const bgColor = computedStyle.getPropertyValue("--card").trim() || "#FFFFFF";
+        const textColor = computedStyle.getPropertyValue("--muted").trim() || "#64748B";
+        const borderColor = computedStyle.getPropertyValue("--border").trim() || "#E2E8F0";
+
+        const chart = createChart(chartContainerRef.current, {
+            width: chartContainerRef.current.clientWidth,
+            height: height,
+            layout: {
+                background: { color: bgColor },
+                textColor: textColor,
+            },
+            grid: {
+                vertLines: { visible: false },
+                horzLines: { color: borderColor, style: 1 },
+            },
+            rightPriceScale: {
+                borderColor: borderColor,
+                scaleMargins: {
+                    top: 0.1,
+                    bottom: 0.1,
+                },
+            },
+            timeScale: {
+                borderColor: borderColor,
+                timeVisible: true,
+                secondsVisible: false,
+            },
+            crosshair: {
+                mode: 1, // CrosshairMode.Normal
+            }
+        });
+
+        chartRef.current = chart;
+
+        // Beautiful colors for lines
+        const colors = ['#2962FF', '#E91E63', '#F59E0B', '#10B981', '#8B5CF6'];
+
+        data.forEach((series, index) => {
+            const lineSeries = chart.addSeries(LineSeries, {
+                color: colors[index % colors.length],
+                lineWidth: 2,
+                title: series.name,
+                priceFormat: {
+                    type: 'percent',
+                },
+            });
+
+            const chartData = series.data.map(d => ({
+                time: d.time as Time,
+                value: d.value,
+            }));
+
+            lineSeries.setData(chartData);
+        });
+
+        chart.timeScale().fitContent();
+
+        const handleResize = () => {
+            if (chartContainerRef.current && chartRef.current) {
+                chartRef.current.applyOptions({
+                    width: chartContainerRef.current.clientWidth,
+                });
+            }
+        };
+
+        window.addEventListener("resize", handleResize);
+
+        return () => {
+            window.removeEventListener("resize", handleResize);
+            chart.remove();
+        };
+    }, [data, height, isClient]);
+
+    if (!isClient) {
+        return (
+            <div
+                className="w-full flex items-center justify-center bg-[var(--card-hover)]"
+                style={{ height: `${height}px` }}
+            >
+                <span className="text-[var(--muted)]">加载图表中...</span>
+            </div>
+        );
+    }
+
+    return (
+        <div
+            ref={chartContainerRef}
+            className="w-full relative"
             style={{ height: `${height}px` }}
         />
     );

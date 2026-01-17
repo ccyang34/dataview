@@ -214,9 +214,19 @@ body {
 }
 
 /* 动画 */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee-fast {
+  animation: marquee 30s linear infinite;
+  display: flex;
+  width: max-content;
+}
+
+.pause-marquee {
+  animation-play-state: paused;
 }
 
 .animate-in {
