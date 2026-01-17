@@ -205,7 +205,7 @@ export function PieChartComponent({
                     outerRadius={80}
                     paddingAngle={2}
                     dataKey="value"
-                    label={showLabel ? ({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%` : false}
+                    label={showLabel ? ({ name, percent = 0 }) => `${name} ${(percent * 100).toFixed(0)}%` : false}
                     labelLine={showLabel}
                 >
                     {data.map((_, index) => (
