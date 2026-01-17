@@ -96,15 +96,15 @@ export default function AnalysisPage() {
                         <h1 className="text-2xl sm:text-3xl font-bold">大豆榨利分析</h1>
                         <p className="text-[var(--muted)] mt-1">大豆压榨利润与基差分析 - {periodLabel}</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto pb-1 sm:pb-0">
                         {/* Time Period Selector */}
-                        <div className="flex items-center gap-1 bg-[var(--card)] rounded-lg p-1 border border-[var(--border)]">
-                            <Calendar className="w-4 h-4 text-[var(--muted)] ml-2" />
+                        <div className="flex items-center gap-1 bg-[var(--card)] rounded-lg p-1 border border-[var(--border)] shrink-0">
+                            <Calendar className="w-4 h-4 text-[var(--muted)] ml-1 sm:ml-2" />
                             {TIME_PERIODS.map((period) => (
                                 <button
                                     key={period.days}
                                     onClick={() => setSelectedPeriod(period.days)}
-                                    className={`px-3 py-1.5 text-sm rounded-md transition-colors cursor-pointer ${selectedPeriod === period.days
+                                    className={`px-2 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm rounded-md transition-colors cursor-pointer whitespace-nowrap ${selectedPeriod === period.days
                                         ? "bg-[var(--primary)] text-white"
                                         : "hover:bg-[var(--border)]"
                                         }`}
@@ -117,10 +117,12 @@ export default function AnalysisPage() {
                         <button
                             onClick={fetchAllData}
                             disabled={loading}
-                            className="btn btn-secondary cursor-pointer disabled:opacity-50"
+                            className="btn btn-secondary cursor-pointer disabled:opacity-50 px-2 py-1 text-xs sm:px-4 sm:py-2 sm:text-sm shrink-0"
                         >
-                            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                            {loading ? "加载中..." : "刷新"}
+                            <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
+                            <span className={`${loading ? 'inline' : 'hidden sm:inline'}`}>
+                                {loading ? "..." : "刷新"}
+                            </span>
                         </button>
                     </div>
                 </div>

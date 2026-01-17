@@ -339,18 +339,25 @@ export default function Home() {
             <div className="p-4 sm:p-6 border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--card)]/50">
               <div className="flex items-center gap-2">
                 <span className={`w-1.5 sm:w-2 h-4 sm:h-5 rounded-full ${mainChartType === 'kline' ? 'bg-[var(--primary)]' : 'bg-[var(--accent)]'}`} />
-                <div className="relative group">
-                  <select
-                    value={mainChartType}
-                    onChange={(e) => setMainChartType(e.target.value as "kline" | "comparison")}
-                    className="appearance-none bg-transparent font-bold text-sm sm:text-lg pr-8 cursor-pointer outline-none text-[var(--foreground)]"
+                <div className="flex bg-[var(--background)] p-1 rounded-lg border border-[var(--border)]">
+                  <button
+                    onClick={() => setMainChartType("kline")}
+                    className={`px-3 py-1.5 text-xs sm:text-sm font-bold rounded-md transition-all ${mainChartType === "kline"
+                      ? "bg-[var(--card)] text-[var(--primary)] shadow-sm border border-[var(--border)]"
+                      : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                      }`}
                   >
-                    <option value="kline">指数技术面分析</option>
-                    <option value="comparison">核心宽基指数累计收益</option>
-                  </select>
-                  <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--muted)]">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                  </div>
+                    指数技术面
+                  </button>
+                  <button
+                    onClick={() => setMainChartType("comparison")}
+                    className={`px-3 py-1.5 text-xs sm:text-sm font-bold rounded-md transition-all ${mainChartType === "comparison"
+                      ? "bg-[var(--card)] text-[var(--accent)] shadow-sm border border-[var(--border)]"
+                      : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                      }`}
+                  >
+                    宽基累计收益
+                  </button>
                 </div>
               </div>
 
