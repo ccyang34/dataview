@@ -45,7 +45,7 @@ export function Navbar({ user }: NavbarProps) {
                             href="/analysis/crush-margin"
                             className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
                         >
-                            深度分析
+                            大豆榨利分析
                         </Link>
 
                         <Link

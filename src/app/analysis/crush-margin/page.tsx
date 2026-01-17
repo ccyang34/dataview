@@ -93,8 +93,8 @@ export default function AnalysisPage() {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                     <div>
-                        <h1 className="text-2xl sm:text-3xl font-bold">深度分析</h1>
-                        <p className="text-[var(--muted)] mt-1">大豆压榨利润与基差深度分析 - {periodLabel}</p>
+                        <h1 className="text-2xl sm:text-3xl font-bold">大豆榨利分析</h1>
+                        <p className="text-[var(--muted)] mt-1">大豆压榨利润与基差分析 - {periodLabel}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {/* Time Period Selector */}
@@ -105,8 +105,8 @@ export default function AnalysisPage() {
                                     key={period.days}
                                     onClick={() => setSelectedPeriod(period.days)}
                                     className={`px-3 py-1.5 text-sm rounded-md transition-colors cursor-pointer ${selectedPeriod === period.days
-                                            ? "bg-[var(--primary)] text-white"
-                                            : "hover:bg-[var(--border)]"
+                                        ? "bg-[var(--primary)] text-white"
+                                        : "hover:bg-[var(--border)]"
                                         }`}
                                 >
                                     {period.label}
