@@ -122,6 +122,13 @@ export function Navbar({ user }: NavbarProps) {
                                 图表
                             </Link>
                             <Link
+                                href="/analysis/crush-margin"
+                                className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
+                                onClick={() => setIsOpen(false)}
+                            >
+                                大豆榨利分析
+                            </Link>
+                            <Link
                                 href="/embed"
                                 className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
                                 onClick={() => setIsOpen(false)}
