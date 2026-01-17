@@ -1,76 +1,63 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
-import {
-  LineChart,
-  AreaChartComponent,
-  BarChartComponent,
-  DonutChart,
-  KLineChart,
-} from "@/components/charts";
 import {
   TrendingUp,
   TrendingDown,
   Activity,
-  Users,
+  Globe,
   Database,
   RefreshCw,
+  BarChart3,
+  ArrowRightLeft,
 } from "lucide-react";
+import {
+  AreaChartComponent,
+  DonutChart,
+  KLineChart,
+} from "@/components/charts";
+import Link from "next/link";
 
-// 模拟数据
-const lineData = [
-  { name: "1月", value: 4000 },
-  { name: "2月", value: 3000 },
-  { name: "3月", value: 5000 },
-  { name: "4月", value: 2780 },
-  { name: "5月", value: 1890 },
-  { name: "6月", value: 2390 },
-  { name: "7月", value: 3490 },
-];
-
-const pieData = [
-  { name: "技术", value: 400 },
-  { name: "金融", value: 300 },
-  { name: "医疗", value: 200 },
-  { name: "消费", value: 278 },
-  { name: "能源", value: 189 },
-];
-
-const klineData = [
-  { time: "2024-01-02", open: 100, high: 105, low: 98, close: 103, volume: 1200000 },
-  { time: "2024-01-03", open: 103, high: 108, low: 102, close: 107, volume: 1500000 },
-  { time: "2024-01-04", open: 107, high: 110, low: 105, close: 106, volume: 1100000 },
-  { time: "2024-01-05", open: 106, high: 109, low: 104, close: 108, volume: 1300000 },
-  { time: "2024-01-08", open: 108, high: 112, low: 107, close: 111, volume: 1600000 },
-  { time: "2024-01-09", open: 111, high: 115, low: 110, close: 114, volume: 1800000 },
-  { time: "2024-01-10", open: 114, high: 116, low: 112, close: 113, volume: 1400000 },
-  { time: "2024-01-11", open: 113, high: 117, low: 111, close: 116, volume: 1700000 },
-  { time: "2024-01-12", open: 116, high: 118, low: 114, close: 115, volume: 1200000 },
-  { time: "2024-01-15", open: 115, high: 120, low: 114, close: 119, volume: 2000000 },
-];
-
-// 统计卡片组件
-interface StatCardProps {
-  title: string;
-  value: string;
+interface MarketIndex {
+  symbol: string;
+  name: string;
+  current: number;
   change: number;
-  icon: React.ReactNode;
+  changePct: number;
+  time: string;
 }
 
-function StatCard({ title, value, change, icon }: StatCardProps) {
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  change: number;
+  icon: React.ReactNode;
+  isStock?: boolean;
+}
+
+function StatCard({ title, value, change, icon, isStock = true }: StatCardProps) {
   const isPositive = change >= 0;
+  // Financial coloring: A-Share usually Red for UP, Green for DOWN
+  // But standard UI is Green for UP, Red for DOWN. Let's stick to standard for consistency with previous charts.
+  const colorClass = isPositive ? "text-[var(--success)]" : "text-[var(--danger)]";
+  const bgClass = isPositive ? "bg-[var(--success)]/10" : "bg-[var(--danger)]/10";
+  const Icon = isPositive ? TrendingUp : TrendingDown;
+
   return (
-    <div className="card p-6">
+    <div className="card p-5 group hover:shadow-lg transition-all duration-300">
       <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-[var(--muted)]">{title}</p>
-          <p className="text-2xl font-semibold mt-1">{value}</p>
-          <div className={`flex items-center gap-1 mt-2 text-sm ${isPositive ? "text-up" : "text-down"}`}>
-            {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-            <span>{isPositive ? "+" : ""}{change}%</span>
+        <div className="flex-1">
+          <p className="text-xs font-medium text-[var(--muted)] mb-1">{title}</p>
+          <div className="flex items-baseline gap-2">
+            <p className="text-xl font-bold tracking-tight">{typeof value === 'number' ? value.toLocaleString(undefined, { minimumFractionDigits: 2 }) : value}</p>
+          </div>
+          <div className={`flex items-center gap-1 mt-2 text-xs font-bold ${colorClass}`}>
+            <Icon className="w-3 h-3" />
+            <span>{isPositive ? "+" : ""}{change.toFixed(2)}%</span>
           </div>
         </div>
-        <div className="p-3 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)]">
+        <div className={`p-2.5 rounded-xl ${bgClass} ${colorClass} group-hover:scale-110 transition-transform`}>
           {icon}
         </div>
       </div>
@@ -79,90 +66,192 @@ function StatCard({ title, value, change, icon }: StatCardProps) {
 }
 
 export default function Home() {
+  const [indices, setIndices] = useState<MarketIndex[]>([]);
+  const [kdata, setKData] = useState<any[]>([]);
+  const [crushLatest, setCrushLatest] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeK, setActiveK] = useState("sh000001");
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [mRes, kRes, cRes] = await Promise.all([
+        fetch('/api/market/indices'),
+        fetch(`/api/market/kline?symbol=${activeK}`),
+        fetch('/api/crush-margin')
+      ]);
+
+      const mData = await mRes.json();
+      const kData = await kRes.json();
+      const cData = await cRes.json();
+
+      if (mData.success) setIndices(mData.data);
+      if (kData.success) setKData(kData.data);
+      if (cData.success && cData.data.length > 0) {
+        setCrushLatest(cData.data[cData.data.length - 1]);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    const timer = setInterval(fetchData, 60000); // Refresh every minute
+    return () => clearInterval(timer);
+  }, [activeK]);
+
   return (
     <div className="min-h-screen bg-[var(--background)]">
       <Navbar />
 
-      <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">数据概览</h1>
-            <p className="text-[var(--muted)] mt-1">实时数据监控与可视化分析</p>
+            <div className="flex items-center gap-2 text-[var(--primary)] mb-1">
+              <Activity className="w-5 h-5 animate-pulse" />
+              <span className="text-sm font-bold tracking-widest uppercase">Finance Hub</span>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight">全球金融市场概览</h1>
+            <p className="text-[var(--muted)] mt-1">实时追踪指数行情、压榨利润及行业数据</p>
           </div>
-          <button className="btn btn-secondary self-start sm:self-auto cursor-pointer">
-            <RefreshCw className="w-4 h-4" />
-            刷新数据
+          <button
+            onClick={fetchData}
+            disabled={isLoading}
+            className="btn btn-secondary flex items-center gap-2 px-6 py-2.5"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            {isLoading ? "更新中..." : "实时刷新"}
           </button>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            title="总访问量"
-            value="128,430"
-            change={12.5}
-            icon={<Activity className="w-5 h-5" />}
-          />
-          <StatCard
-            title="活跃用户"
-            value="3,642"
-            change={-2.3}
-            icon={<Users className="w-5 h-5" />}
-          />
-          <StatCard
-            title="数据条目"
-            value="892,156"
-            change={8.7}
-            icon={<Database className="w-5 h-5" />}
-          />
-          <StatCard
-            title="今日涨幅"
-            value="+3.24%"
-            change={3.24}
-            icon={<TrendingUp className="w-5 h-5" />}
-          />
+        {/* Indices Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {indices.slice(0, 4).map((idx) => (
+            <StatCard
+              key={idx.symbol}
+              title={idx.name}
+              value={idx.current}
+              change={idx.changePct}
+              icon={<Globe className="w-5 h-5" />}
+            />
+          ))}
+          {/* Soy Crush Margin Spotlight */}
+          {crushLatest && (
+            <div className="sm:col-span-2 lg:col-span-4 mt-2">
+              <Link href="/analysis/crush-margin" className="block">
+                <div className="card p-4 border-l-4 border-[var(--primary)] hover:translate-x-1 transition-all flex items-center justify-between bg-gradient-to-r from-[var(--primary)]/5 to-transparent">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-[var(--primary)] text-white rounded-xl shadow-lg shadow-[var(--primary)]/20">
+                      <ArrowRightLeft className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm">最新榨利分析</h3>
+                      <p className="text-xs text-[var(--muted)]">数据截止: {crushLatest.date}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-[var(--muted)] block">现货榨利</span>
+                    <span className={`text-xl font-black ${crushLatest.grossMargin >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                      {crushLatest.grossMargin.toFixed(0)} <small className="text-[10px] opacity-70">元/吨</small>
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            </div>
+          )}
         </div>
 
-        {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* 趋势图 */}
-          <div className="card p-6">
-            <h3 className="font-semibold mb-4">月度趋势</h3>
-            <AreaChartComponent data={lineData} height={250} />
-          </div>
-
-          {/* 分布图 */}
-          <div className="card p-6">
-            <h3 className="font-semibold mb-4">行业分布</h3>
-            <DonutChart data={pieData} height={250} />
-          </div>
-        </div>
-
-        {/* K线图 */}
-        <div className="card p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">股票走势 (K线图)</h3>
-            <div className="flex gap-2">
-              <button className="btn btn-secondary text-xs py-1 px-3 cursor-pointer">日K</button>
-              <button className="btn btn-secondary text-xs py-1 px-3 cursor-pointer">周K</button>
-              <button className="btn btn-secondary text-xs py-1 px-3 cursor-pointer">月K</button>
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Chart: KLine */}
+          <div className="lg:col-span-2 card overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--card)]/50">
+              <div>
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <span className="w-2 h-5 bg-[var(--primary)] rounded-full" />
+                  指数技术面分析
+                </h3>
+                <p className="text-xs text-[var(--muted)] mt-1">Sina Real-time Data</p>
+              </div>
+              <div className="flex bg-[var(--background)] p-1 rounded-lg border border-[var(--border)]">
+                {[
+                  { id: 'sh000001', n: '上证' },
+                  { id: 'sz399001', n: '深证' },
+                  { id: 'sz399006', n: '创业' }
+                ].map(b => (
+                  <button
+                    key={b.id}
+                    onClick={() => setActiveK(b.id)}
+                    className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${activeK === b.id ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--muted)] hover:bg-[var(--card-hover)]'}`}
+                  >
+                    {b.n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="p-4 flex-1 min-h-[400px]">
+              {kdata.length > 0 ? (
+                <KLineChart data={kdata} height={400} />
+              ) : (
+                <div className="flex items-center justify-center h-full opacity-30">加载数据中...</div>
+              )}
             </div>
           </div>
-          <KLineChart data={klineData} height={400} />
-        </div>
 
-        {/* 数据柱状图 */}
-        <div className="card p-6">
-          <h3 className="font-semibold mb-4">数据对比</h3>
-          <BarChartComponent data={lineData} height={250} />
+          <div className="space-y-6">
+            {/* Sector Distribution */}
+            <div className="card p-6">
+              <h3 className="font-bold mb-4 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-[var(--primary)]" />
+                热门板块分布
+              </h3>
+              <DonutChart data={[
+                { name: "能源", value: 400 },
+                { name: "金融", value: 300 },
+                { name: "技术", value: 500 },
+                { name: "基建", value: 200 },
+              ]} height={220} />
+            </div>
+
+            {/* Global Market Mini Cards */}
+            <div className="card p-1">
+              <div className="p-4 border-b border-[var(--border)] font-bold text-xs uppercase tracking-widest text-[var(--muted)]">
+                外盘早报
+              </div>
+              <div className="divide-y divide-[var(--border)]">
+                {indices.slice(4).map(idx => (
+                  <div key={idx.symbol} className="p-4 flex items-center justify-between hover:bg-[var(--card-hover)] transition-colors">
+                    <div>
+                      <p className="font-bold text-sm">{idx.name}</p>
+                      <p className="text-[10px] text-[var(--muted)]">{idx.time}</p>
+                    </div>
+                    <div className={`text-right font-mono font-bold text-sm ${idx.changePct >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                      {idx.changePct >= 0 ? '+' : ''}{idx.changePct.toFixed(2)}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--border)] py-6 px-4">
-        <div className="max-w-7xl mx-auto text-center text-sm text-[var(--muted)]">
-          <p>DataView © 2024 - 数据可视化平台</p>
+      <footer className="border-t border-[var(--border)] py-8 px-4 bg-[var(--card)]/30">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-[var(--muted)]">
+          <div className="flex items-center gap-2">
+            <span className="font-black text-[var(--foreground)] tracking-tighter">DATAVIEW</span>
+            <span className="opacity-40">|</span>
+            <p>© 2024 一站式金融数据可视化分析平台</p>
+          </div>
+          <div className="flex gap-6">
+            <Link href="/" className="hover:text-[var(--primary)]">首页</Link>
+            <Link href="/warehouse" className="hover:text-[var(--primary)]">仓库</Link>
+            <Link href="/analysis/crush-margin" className="hover:text-[var(--primary)]">研究</Link>
+          </div>
         </div>
       </footer>
     </div>
