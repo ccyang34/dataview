@@ -74,27 +74,22 @@ const CHART_HEIGHT_DESKTOP = 260;
 const CHART_MARGIN_MOBILE = { top: 10, right: 10, left: 5, bottom: 10 };
 const CHART_MARGIN_DESKTOP = { top: 15, right: 50, left: 50, bottom: 15 };
 
-// Date formatter - shorter for mobile
-const formatDate = (dateStr: string) => {
+
+// Format date string for display (shorter format)
+const formatDateLabel = (dateStr: string) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '';
+    if (isNaN(d.getTime())) return dateStr;
     return `${d.getFullYear().toString().slice(2)}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
-// Format timestamp to date string
-const formatTimestamp = (timestamp: number) => {
-    if (!timestamp) return '';
-    const d = new Date(timestamp);
-    return `${d.getFullYear().toString().slice(2)}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-};
-
-// Add timestamp to data for time-scale axis
-const addTimestamp = <T extends { date: string }>(data: T[]): (T & { timestamp: number })[] => {
-    return data.map(item => ({
-        ...item,
-        timestamp: new Date(item.date).getTime()
-    }));
+// Calculate optimal tick interval based on data length
+const getInterval = (dataLength: number): number => {
+    if (dataLength <= 30) return 5;
+    if (dataLength <= 90) return Math.floor(dataLength / 8);
+    if (dataLength <= 180) return Math.floor(dataLength / 10);
+    if (dataLength <= 365) return Math.floor(dataLength / 12);
+    return Math.floor(dataLength / 14);
 };
 
 export function CrushMarginDashboard({
@@ -104,11 +99,6 @@ export function CrushMarginDashboard({
     title = "大豆压榨利润分析"
 }: FullDashboardProps) {
     if (!data || data.length === 0) return <div className="text-center py-20">暂无数据</div>;
-
-    // Pre-process data with timestamps for time-scale axes
-    const dataWithTime = addTimestamp(data);
-    const positionWithTime = positionData ? addTimestamp(positionData) : [];
-    const oilWithTime = oilData ? addTimestamp(oilData) : [];
 
     const latest = data[data.length - 1];
     const latestDate = latest.date;
@@ -146,7 +136,7 @@ export function CrushMarginDashboard({
                 <div className="h-[180px] md:h-[260px]">
                     <ResponsiveContainer width="100%" height="100%">
                         {positionData && positionData.length > 0 ? (
-                            <AreaChart data={positionWithTime} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                            <AreaChart data={positionData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                                 <defs>
                                     <linearGradient id="colorY2505" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor={COLORS.Y2505} stopOpacity={0.6} />
@@ -170,7 +160,7 @@ export function CrushMarginDashboard({
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-                                <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} stroke="var(--muted)" fontSize={9} tickFormatter={formatTimestamp} tickCount={8} />
+                                <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(positionData?.length || 0)} />
                                 <YAxis stroke="var(--muted)" fontSize={8} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} width={28} domain={['auto', 'auto']} />
                                 <Tooltip
                                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
@@ -199,9 +189,9 @@ export function CrushMarginDashboard({
                 </h3>
                 <div className="h-[180px] md:h-[260px]">
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={dataWithTime} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                        <ComposedChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-                            <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} stroke="var(--muted)" fontSize={9} tickFormatter={formatTimestamp} tickCount={8} />
+                            <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} />
                             <YAxis yAxisId="left" stroke={COLORS.soybeanOil} fontSize={8} domain={['auto', 'auto']} width={32} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                             <YAxis yAxisId="right" orientation="right" stroke={COLORS.soybeanMeal} fontSize={8} domain={['auto', 'auto']} width={28} />
                             <Tooltip
@@ -225,9 +215,9 @@ export function CrushMarginDashboard({
                 </h3>
                 <div className="h-[180px] md:h-[260px]">
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={dataWithTime} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                        <ComposedChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-                            <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} stroke="var(--muted)" fontSize={9} tickFormatter={formatTimestamp} tickCount={8} />
+                            <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} />
                             <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
                             <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilMealRatio} fontSize={8} width={24} domain={['auto', 'auto']} />
                             <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }} />
@@ -250,7 +240,7 @@ export function CrushMarginDashboard({
                 </h3>
                 <div className="h-[180px] md:h-[260px]">
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={dataWithTime} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                        <ComposedChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                             <defs>
                                 <linearGradient id="colorFuturesMargin" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor={COLORS.futuresMargin} stopOpacity={0.4} />
@@ -258,7 +248,7 @@ export function CrushMarginDashboard({
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-                            <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} stroke="var(--muted)" fontSize={9} tickFormatter={formatTimestamp} tickCount={8} />
+                            <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} />
                             <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
                             <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilOverlay} fontSize={8} width={32} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} domain={['auto', 'auto']} />
                             <Tooltip
@@ -292,9 +282,9 @@ export function CrushMarginDashboard({
                 <div className="h-[180px] md:h-[260px]">
                     <ResponsiveContainer width="100%" height="100%">
                         {oilData && oilData.length > 0 ? (
-                            <LineChart data={oilWithTime} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                            <LineChart data={oilData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-                                <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} stroke="var(--muted)" fontSize={9} tickFormatter={formatTimestamp} tickCount={8} />
+                                <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(oilData?.length || 0)} />
                                 <YAxis stroke="var(--muted)" fontSize={8} domain={['auto', 'auto']} width={32} />
                                 <Tooltip
                                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
