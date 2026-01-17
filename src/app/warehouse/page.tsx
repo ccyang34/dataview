@@ -100,7 +100,7 @@ export default function WarehousePage() {
     const [items, setItems] = useState<DbItem[]>([]);
     const [filteredItems, setFilteredItems] = useState<DbItem[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
-    const [typeFilter, setTypeFilter] = useState<'ALL' | 'BASE TABLE' | 'VIEW'>('ALL');
+    const [typeFilter, setTypeFilter] = useState<'ALL' | 'BASE TABLE' | 'VIEW'>('VIEW');
     const [activeItem, setActiveItem] = useState<DbItem | null>(null);
     const [rawData, setRawData] = useState<any[]>([]);
     const [columns, setColumns] = useState<string[]>([]);
