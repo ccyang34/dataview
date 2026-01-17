@@ -116,6 +116,7 @@ export default function Home() {
   const [crushLatest, setCrushLatest] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeK, setActiveK] = useState("sh000001");
+  const [mainChartType, setMainChartType] = useState<"kline" | "comparison">("kline");
 
   const fetchData = async () => {
     // Keep internal state updated, don't show full loading after first time
@@ -335,34 +336,68 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Chart: KLine */}
           <div className="lg:col-span-2 card overflow-hidden flex flex-col">
-            <div className="p-4 sm:p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--card)]/50">
-              <div>
-                <h3 className="font-bold text-sm sm:text-lg flex items-center gap-2">
-                  <span className="w-1.5 sm:w-2 h-4 sm:h-5 bg-[var(--primary)] rounded-full" />
-                  指数技术面分析
-                </h3>
-              </div>
-              <div className="flex bg-[var(--background)] p-0.5 sm:p-1 rounded-lg border border-[var(--border)]">
-                {[
-                  { id: 'sh000001', n: '上证' },
-                  { id: 'sz399001', n: '深证' },
-                  { id: 'sz399006', n: '创业' }
-                ].map(b => (
-                  <button
-                    key={b.id}
-                    onClick={() => setActiveK(b.id)}
-                    className={`px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-bold rounded-md transition-all ${activeK === b.id ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--muted)] hover:bg-[var(--card-hover)]'}`}
+            <div className="p-4 sm:p-6 border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--card)]/50">
+              <div className="flex items-center gap-2">
+                <span className={`w-1.5 sm:w-2 h-4 sm:h-5 rounded-full ${mainChartType === 'kline' ? 'bg-[var(--primary)]' : 'bg-[var(--accent)]'}`} />
+                <div className="relative group">
+                  <select
+                    value={mainChartType}
+                    onChange={(e) => setMainChartType(e.target.value as "kline" | "comparison")}
+                    className="appearance-none bg-transparent font-bold text-sm sm:text-lg pr-8 cursor-pointer outline-none text-[var(--foreground)]"
                   >
-                    {b.n}
-                  </button>
-                ))}
+                    <option value="kline">指数技术面分析</option>
+                    <option value="comparison">核心宽基指数累计收益</option>
+                  </select>
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--muted)]">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="p-2 sm:p-4 flex-1 min-h-[250px] sm:min-h-[320px]">
-              {kdata.length > 0 ? (
-                <KLineChart data={kdata} height={320} />
+
+              {mainChartType === 'kline' ? (
+                <div className="flex bg-[var(--background)] p-0.5 sm:p-1 rounded-lg border border-[var(--border)] self-start sm:self-auto">
+                  {[
+                    { id: 'sh000001', n: '上证' },
+                    { id: 'sz399001', n: '深证' },
+                    { id: 'sz399006', n: '创业' }
+                  ].map(b => (
+                    <button
+                      key={b.id}
+                      onClick={() => setActiveK(b.id)}
+                      className={`px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-bold rounded-md transition-all ${activeK === b.id ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--muted)] hover:bg-[var(--card-hover)]'}`}
+                    >
+                      {b.n}
+                    </button>
+                  ))}
+                </div>
               ) : (
-                <div className="flex items-center justify-center h-full opacity-30">加载数据中...</div>
+                <div className="flex gap-x-3 gap-y-1 flex-wrap justify-end max-w-full sm:max-w-none">
+                  {comparisonData.map((s, i) => (
+                    <div key={i} className="flex items-center gap-1 text-[9px] sm:text-xs whitespace-nowrap">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ['#2962FF', '#8B5CF6', '#E91E63', '#F59E0B', '#10B981', '#06B6D4'][i % 6] }} />
+                      <span className="text-[var(--muted)]">{s.name}</span>
+                      <span className={`font-bold ${s.currentPct >= 0 ? 'text-[#ff4d4f]' : 'text-[#52c41a]'}`}>
+                        {s.currentPct >= 0 ? '+' : ''}{s.currentPct.toFixed(2)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-2 sm:p-4 flex-1 min-h-[320px]">
+              {mainChartType === 'kline' ? (
+                kdata.length > 0 ? (
+                  <KLineChart data={kdata} height={320} />
+                ) : (
+                  <div className="flex items-center justify-center h-full opacity-30">加载数据中...</div>
+                )
+              ) : (
+                comparisonData.length > 0 ? (
+                  <ComparisonChart data={comparisonData} height={320} />
+                ) : (
+                  <div className="flex items-center justify-center h-full opacity-30">加载数据中...</div>
+                )
               )}
             </div>
 
@@ -417,34 +452,6 @@ export default function Home() {
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </div>
-
-            {/* Index Comparison Chart */}
-            <div id="comp" className="card overflow-hidden mt-6">
-              <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--card)]/50">
-                <h3 className="font-bold text-sm sm:text-lg flex items-center gap-2">
-                  <span className="w-1.5 sm:w-2 h-4 sm:h-5 bg-[var(--accent)] rounded-full" />
-                  核心宽基指数累计收益
-                </h3>
-                <div className="flex gap-x-3 gap-y-1 flex-wrap justify-end max-w-[60%] sm:max-w-none">
-                  {comparisonData.map((s, i) => (
-                    <div key={i} className="flex items-center gap-1 text-[9px] sm:text-xs whitespace-nowrap">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ['#2962FF', '#8B5CF6', '#E91E63', '#F59E0B', '#10B981', '#06B6D4'][i % 6] }} />
-                      <span className="text-[var(--muted)]">{s.name}</span>
-                      <span className={`font-bold ${s.currentPct >= 0 ? 'text-[#ff4d4f]' : 'text-[#52c41a]'}`}>
-                        {s.currentPct >= 0 ? '+' : ''}{s.currentPct.toFixed(2)}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="p-4">
-                {comparisonData.length > 0 ? (
-                  <ComparisonChart data={comparisonData} height={300} />
-                ) : (
-                  <div className="flex items-center justify-center h-full opacity-30">加载数据中...</div>
-                )}
               </div>
             </div>
           </div >

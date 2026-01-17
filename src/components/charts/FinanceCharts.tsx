@@ -90,7 +90,7 @@ export function KLineChart({ data, height = 400, showVolume = true }: KLineChart
             },
             timeScale: {
                 borderColor: borderColor,
-                timeVisible: true,
+                timeVisible: false,
                 secondsVisible: false,
                 rightOffset: 5,
                 tickMarkFormatter: formatDate,
@@ -268,7 +268,7 @@ export function TimelineChart({ data, prevClose, height = 300 }: TimelineChartPr
             },
             timeScale: {
                 borderColor: borderColor,
-                timeVisible: true,
+                timeVisible: false,
                 secondsVisible: false,
                 tickMarkFormatter: formatDate,
                 ticksVisible: true,
@@ -372,14 +372,46 @@ export interface ComparisonChartProps {
 export function ComparisonChart({ data, height = 300 }: ComparisonChartProps) {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
+    const seriesRefs = useRef<any[]>([]); // 存储序列引用以更新配置
     const [isClient, setIsClient] = useState(false);
+    const [isInteracting, setIsInteracting] = useState(false);
 
     useEffect(() => {
         setIsClient(true);
     }, []);
 
+    // 监听交互状态更新图表配置
+    useEffect(() => {
+        if (!chartRef.current) return;
+
+        // 更新十字光标
+        chartRef.current.applyOptions({
+            crosshair: {
+                vertLine: {
+                    visible: isInteracting,
+                    labelVisible: isInteracting,
+                },
+                horzLine: {
+                    visible: isInteracting,
+                    labelVisible: isInteracting,
+                },
+            },
+        });
+
+        // 更新序列标签显隐
+        seriesRefs.current.forEach(series => {
+            series.applyOptions({
+                priceLineVisible: isInteracting,
+                crosshairMarkerVisible: isInteracting,
+            });
+        });
+    }, [isInteracting]);
+
     useEffect(() => {
         if (!isClient || !chartContainerRef.current || data.length === 0) return;
+
+        // 重置序列引用
+        seriesRefs.current = [];
 
         const computedStyle = getComputedStyle(document.documentElement);
         const bgColor = computedStyle.getPropertyValue("--card").trim() || "#FFFFFF";
@@ -410,7 +442,7 @@ export function ComparisonChart({ data, height = 300 }: ComparisonChartProps) {
             },
             timeScale: {
                 borderColor: borderColor,
-                timeVisible: true,
+                timeVisible: false,
                 secondsVisible: false,
                 rightOffset: 50,
                 tickMarkFormatter: formatDate,
@@ -418,6 +450,14 @@ export function ComparisonChart({ data, height = 300 }: ComparisonChartProps) {
             },
             crosshair: {
                 mode: 1, // CrosshairMode.Normal
+                vertLine: {
+                    visible: false, // 默认隐藏
+                    labelVisible: false,
+                },
+                horzLine: {
+                    visible: false, // 默认隐藏
+                    labelVisible: false,
+                },
             }
         });
 
@@ -430,11 +470,16 @@ export function ComparisonChart({ data, height = 300 }: ComparisonChartProps) {
             const lineSeries = chart.addSeries(LineSeries, {
                 color: colors[index % colors.length],
                 lineWidth: 2,
-                title: series.name,
                 priceFormat: {
                     type: 'percent',
                 },
+                lastValueVisible: true, // 默认显示最新值标签
+                priceLineVisible: false, // 默认隐藏价格线
+                crosshairMarkerVisible: true, // 始终显示数据点标记
             });
+
+            // 存入引用数组
+            seriesRefs.current.push(lineSeries);
 
             const chartData = series.data.map(d => ({
                 time: d.time as Time,
@@ -442,7 +487,43 @@ export function ComparisonChart({ data, height = 300 }: ComparisonChartProps) {
             }));
 
             lineSeries.setData(chartData);
+
+            // 强制应用初始选项
+            lineSeries.applyOptions({
+                lastValueVisible: true,
+                priceLineVisible: false,
+                crosshairMarkerVisible: false, // 默认隐藏标记点
+            });
         });
+
+        // 监听十字光标移动
+        chart.subscribeCrosshairMove((param) => {
+            if (
+                param.point === undefined ||
+                !param.time ||
+                param.point.x < 0 ||
+                param.point.x > chart.timeScale().width() ||
+                param.point.y < 0 ||
+                param.point.y > height
+            ) {
+                setIsInteracting(false);
+            } else {
+                setIsInteracting(true);
+            }
+        });
+
+        // 初始触发一次交互更新（确保状态同步）
+        const timer = setTimeout(() => {
+            if (chartRef.current) {
+                // 此时 isInteracting 为 false
+                seriesRefs.current.forEach(series => {
+                    series.applyOptions({
+                        priceLineVisible: false,
+                        crosshairMarkerVisible: false,
+                    });
+                });
+            }
+        }, 50);
 
         chart.timeScale().fitContent();
 
@@ -458,6 +539,7 @@ export function ComparisonChart({ data, height = 300 }: ComparisonChartProps) {
 
         return () => {
             window.removeEventListener("resize", handleResize);
+            clearTimeout(timer);
             chart.remove();
         };
     }, [data, height, isClient]);
