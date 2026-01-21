@@ -268,7 +268,7 @@ export function EChartsYearly({
                     />
                 </div>
                 {/* Footer Stats */}
-                <div className="flex justify-between text-xs text-[var(--muted)] mt-1 mb-2 px-2 md:mt-3 border-t border-[var(--border)] pt-2 md:pt-3">
+                <div className="flex justify-between text-xs text-[var(--muted)] mt-1 mb-2 md:mt-3 border-t border-[var(--border)] pt-2 md:pt-3">
                     <span>
                         最高: <span className="text-green-600 font-medium">{maxValue.toFixed(0)}</span>
                     </span>
