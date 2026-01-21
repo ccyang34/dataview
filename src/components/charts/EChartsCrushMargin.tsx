@@ -312,8 +312,13 @@ export function EChartsCrushMargin({
     const getPositionOption = () => {
         if (!positionData) return {};
         const dates = positionData.map(d => d.date);
+
+        // Map price data to position dates
+        const priceMap = new Map(data.map(d => [d.date, d.soybeanOilPrice]));
+        const priceSeriesData = dates.map(date => priceMap.get(date) || undefined);
+
         const seriesNames = ['Y2505', 'Y2509', 'Y2601', 'Y2605', 'Y2609'];
-        const series = seriesNames.map(name => ({
+        const series: any[] = seriesNames.map(name => ({
             name,
             type: 'line',
             stack: 'Total',
@@ -324,12 +329,42 @@ export function EChartsCrushMargin({
             itemStyle: { color: (COLORS as any)[name] }
         }));
 
+        // Add Price Series
+        series.push({
+            name: '豆油价格(右)',
+            type: 'line',
+            yAxisIndex: 1, // Right axis
+            data: priceSeriesData,
+            symbol: 'none',
+            itemStyle: { color: COLORS.soybeanOil },
+            lineStyle: { width: 1.5, type: 'dashed' } // Dashed line as requested
+        });
+
         return {
             tooltip: { trigger: 'axis', backgroundColor: 'var(--card)', borderColor: 'var(--border)', textStyle: { color: 'var(--foreground)' }, confine: true, padding: [4, 8] },
-            legend: { data: seriesNames, top: 0, textStyle: { fontSize: 10 }, itemWidth: 10, itemHeight: 6, itemGap: 5 },
-            grid: commonGrid,
+            legend: {
+                data: [...seriesNames, '豆油价格(右)'],
+                top: 0,
+                textStyle: { fontSize: 10 },
+                itemWidth: 10, itemHeight: 6,
+                itemGap: 5
+            },
+            grid: { ...commonGrid, right: isMobile ? '1%' : '5%' }, // Slight right margin for axis
             xAxis: { type: 'category', data: dates, axisLabel: { formatter: formatDateLabel, fontSize: 9, color: 'var(--muted)' } },
-            yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 9, color: 'var(--muted)', formatter: (v: number) => (v / 1000).toFixed(0) + 'k' } },
+            yAxis: [
+                {
+                    type: 'value',
+                    scale: true, // Auto scale for position
+                    axisLabel: { fontSize: 9, color: 'var(--muted)', formatter: (v: number) => (v / 1000).toFixed(0) + 'k' }
+                },
+                {
+                    type: 'value',
+                    scale: true, // Auto scale for price
+                    position: 'right',
+                    splitLine: { show: false },
+                    axisLabel: { fontSize: 9, color: COLORS.soybeanOil, formatter: (v: number) => (v / 1000).toFixed(1) + 'k' }
+                }
+            ],
             series
         };
     };
