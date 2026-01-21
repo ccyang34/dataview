@@ -162,17 +162,19 @@ export function EChartsYearly({
                 }
             },
             legend: {
-                data: [...displayYears].reverse().map(y => y.toString()), // Reverse order: Oldest -> Newest (Right)
+                data: [...displayYears].reverse().map(y => y.toString()),
                 top: 0,
-                type: 'scroll',
-                width: '90%', // Prevent overflow
+                // type: 'scroll', // User requested show all (wrap)
+                width: '100%',
+                itemGap: 10,
+                textStyle: { fontSize: 10 },
                 pageTextStyle: { color: 'var(--foreground)' }
             },
             grid: {
                 left: isMobile ? '0%' : '5%',
                 right: isMobile ? '2%' : '5%',
-                top: isMobile ? 35 : 40,
-                bottom: isMobile ? '3%' : '0%', // Add small buffer for mobile
+                top: isMobile ? 65 : 40, // Increased top margin for multi-line legend
+                bottom: isMobile ? '3%' : '0%',
                 containLabel: true
             },
             xAxis: {
