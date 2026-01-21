@@ -168,10 +168,10 @@ export function EChartsYearly({
                 pageTextStyle: { color: 'var(--foreground)' }
             },
             grid: {
-                left: isMobile ? '2%' : '5%',
-                right: isMobile ? '5%' : '5%',
-                top: 40,
-                bottom: 10,
+                left: isMobile ? '0%' : '5%',
+                right: isMobile ? '1%' : '5%',
+                top: isMobile ? 30 : 40,
+                bottom: '0%',
                 containLabel: true
             },
             xAxis: {
@@ -185,6 +185,7 @@ export function EChartsYearly({
             },
             yAxis: {
                 type: 'value',
+                scale: true,
                 axisLabel: {
                     fontSize: isMobile ? 9 : 11,
                     color: 'var(--muted)'
@@ -258,7 +259,7 @@ export function EChartsYearly({
                 </div>
             </div>
 
-            <div className="card p-2 md:p-4">
+            <div className="card p-0 md:p-4">
                 <div style={{ height: isMobile ? 280 : height }}>
                     <ReactECharts
                         option={getOption()}
@@ -267,7 +268,7 @@ export function EChartsYearly({
                     />
                 </div>
                 {/* Footer Stats */}
-                <div className="flex justify-between text-xs text-[var(--muted)] mt-3 px-2 border-t border-[var(--border)] pt-3">
+                <div className="flex justify-between text-xs text-[var(--muted)] mt-1 mb-2 px-2 md:mt-3 border-t border-[var(--border)] pt-2 md:pt-3">
                     <span>
                         最高: <span className="text-green-600 font-medium">{maxValue.toFixed(0)}</span>
                     </span>

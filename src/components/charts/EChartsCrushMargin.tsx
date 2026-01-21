@@ -100,10 +100,10 @@ export function EChartsCrushMargin({
 
     // Common Chart Options
     const commonGrid = {
-        left: isMobile ? '2%' : '5%',
-        right: isMobile ? '2%' : '5%',
-        top: '15%',
-        bottom: '5%',
+        left: isMobile ? '0%' : '5%',
+        right: isMobile ? '0%' : '5%',
+        top: isMobile ? '12%' : '15%', // Reduced top margin for mobile
+        bottom: '0%', // Minimized bottom
         containLabel: true
     };
 
@@ -119,27 +119,29 @@ export function EChartsCrushMargin({
                 confine: true,
                 formatter: (params: any) => {
                     // Ensure Tooltip is visible (standard behavior)
-                    let html = `<div>${params[0].axisValue}</div>`;
+                    let html = `<div style="margin-bottom:2px;font-weight:500">${params[0].axisValue}</div>`;
                     params.forEach((param: any) => {
                         const val = param.value !== undefined ? (typeof param.value === 'number' ? param.value.toFixed(0) : param.value) : '-';
-                        html += `<div style="display:flex;align-items:center;gap:4px">
-                            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${param.color}"></span>
+                        html += `<div style="display:flex;align-items:center;gap:4px;font-size:10px">
+                            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background-color:${param.color}"></span>
                             <span style="flex:1">${param.seriesName}</span>
                             <strong>${val}</strong>
                          </div>`;
                     });
                     return html;
-                }
+                },
+                padding: [4, 8] // Compact padding
             },
             legend: {
                 data: ['盘面榨利', '现货榨利', '豆油(右)'],
                 top: 0,
                 icon: 'roundRect',
-                itemWidth: 12,
-                itemHeight: 8,
-                textStyle: { fontSize: 10 }
+                itemWidth: 10,
+                itemHeight: 6,
+                textStyle: { fontSize: 10 },
+                itemGap: 10
             },
-            grid: { ...commonGrid, right: isMobile ? '10%' : '5%' },
+            grid: { ...commonGrid, right: isMobile ? '1%' : '5%' }, // Slightly more for right axis
             xAxis: {
                 type: 'category',
                 data: dates,
@@ -224,14 +226,15 @@ export function EChartsCrushMargin({
     const getBasisOption = () => {
         const dates = data.map(d => d.date);
         return {
-            tooltip: { trigger: 'axis', backgroundColor: 'var(--card)', borderColor: 'var(--border)', textStyle: { color: 'var(--foreground)', fontSize: 11 }, confine: true },
+            tooltip: { trigger: 'axis', backgroundColor: 'var(--card)', borderColor: 'var(--border)', textStyle: { color: 'var(--foreground)', fontSize: 11 }, confine: true, padding: [4, 8] },
             legend: {
                 data: ['豆油基差', '豆粕基差', '油粕比', '基差率%'],
                 top: 0,
                 textStyle: { fontSize: 10 },
-                itemWidth: 10, itemHeight: 8
+                itemWidth: 10, itemHeight: 6,
+                itemGap: 10
             },
-            grid: { ...commonGrid, right: isMobile ? '8%' : '5%' },
+            grid: { ...commonGrid, right: isMobile ? '1%' : '5%' },
             xAxis: {
                 type: 'category',
                 data: dates,
@@ -272,8 +275,8 @@ export function EChartsCrushMargin({
         if (!oilData) return {};
         const dates = oilData.map(d => d.date);
         return {
-            tooltip: { trigger: 'axis', backgroundColor: 'var(--card)', borderColor: 'var(--border)', textStyle: { color: 'var(--foreground)' }, confine: true },
-            legend: { data: ['豆油(Y)', '棕榄油(P)', '菜油(OI)'], top: 0, textStyle: { fontSize: 10 } },
+            tooltip: { trigger: 'axis', backgroundColor: 'var(--card)', borderColor: 'var(--border)', textStyle: { color: 'var(--foreground)' }, confine: true, padding: [4, 8] },
+            legend: { data: ['豆油(Y)', '棕榄油(P)', '菜油(OI)'], top: 0, textStyle: { fontSize: 10 }, itemWidth: 10, itemHeight: 6, itemGap: 10 },
             grid: commonGrid,
             xAxis: { type: 'category', data: dates, axisLabel: { formatter: formatDateLabel, fontSize: 9, color: 'var(--muted)' } },
             yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 9, color: 'var(--muted)' }, splitLine: { lineStyle: { opacity: 0.3 } } },
@@ -289,9 +292,9 @@ export function EChartsCrushMargin({
     const getFuturesOption = () => {
         const dates = data.map(d => d.date);
         return {
-            tooltip: { trigger: 'axis', backgroundColor: 'var(--card)', borderColor: 'var(--border)', textStyle: { color: 'var(--foreground)' }, confine: true },
-            legend: { data: ['豆油', '豆粕', '豆二'], top: 0, textStyle: { fontSize: 10 } },
-            grid: { ...commonGrid, right: isMobile ? '8%' : '5%' },
+            tooltip: { trigger: 'axis', backgroundColor: 'var(--card)', borderColor: 'var(--border)', textStyle: { color: 'var(--foreground)' }, confine: true, padding: [4, 8] },
+            legend: { data: ['豆油', '豆粕', '豆二'], top: 0, textStyle: { fontSize: 10 }, itemWidth: 10, itemHeight: 6, itemGap: 10 },
+            grid: { ...commonGrid, right: isMobile ? '1%' : '5%' },
             xAxis: { type: 'category', data: dates, axisLabel: { formatter: formatDateLabel, fontSize: 9, color: 'var(--muted)' } },
             yAxis: [
                 { type: 'value', scale: true, axisLabel: { fontSize: 9, color: COLORS.soybeanOil, formatter: (v: number) => (v / 1000).toFixed(0) + 'k' } },
@@ -322,11 +325,11 @@ export function EChartsCrushMargin({
         }));
 
         return {
-            tooltip: { trigger: 'axis', backgroundColor: 'var(--card)', borderColor: 'var(--border)', textStyle: { color: 'var(--foreground)' }, confine: true },
-            legend: { data: seriesNames, top: 0, textStyle: { fontSize: 10 } },
+            tooltip: { trigger: 'axis', backgroundColor: 'var(--card)', borderColor: 'var(--border)', textStyle: { color: 'var(--foreground)' }, confine: true, padding: [4, 8] },
+            legend: { data: seriesNames, top: 0, textStyle: { fontSize: 10 }, itemWidth: 10, itemHeight: 6, itemGap: 5 },
             grid: commonGrid,
             xAxis: { type: 'category', data: dates, axisLabel: { formatter: formatDateLabel, fontSize: 9, color: 'var(--muted)' } },
-            yAxis: { type: 'value', axisLabel: { fontSize: 9, color: 'var(--muted)', formatter: (v: number) => (v / 1000).toFixed(0) + 'k' } },
+            yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 9, color: 'var(--muted)', formatter: (v: number) => (v / 1000).toFixed(0) + 'k' } },
             series
         };
     };
@@ -386,8 +389,8 @@ export function EChartsCrushMargin({
             </div>
 
             {/* 1. Crush Margin Chart */}
-            <div className="card p-2 md:p-4">
-                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
+            <div className="card p-0 md:p-4">
+                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2 px-2 md:px-0 pt-2 md:pt-0">
                     <span className="w-1 h-3 md:h-4 bg-[#800080] rounded"></span>
                     压榨利润走势 - 现货: {currentData.grossMargin.toFixed(0)}
                     {activeData && <span className="text-[var(--muted)] ml-2 text-[10px] font-normal">({activeData.date})</span>}
@@ -408,8 +411,8 @@ export function EChartsCrushMargin({
             </div>
 
             {/* 2. Basis Chart */}
-            <div className="card p-2 md:p-4">
-                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
+            <div className="card p-0 md:p-4">
+                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2 px-2 md:px-0 pt-2 md:pt-0">
                     <span className="w-1 h-3 md:h-4 bg-[#228B22] rounded"></span>
                     基差走势 & 油粕比: {currentBasisData.spotOilMealRatio.toFixed(3)}
                     {activeBasisData && <span className="text-[var(--muted)] ml-2 text-[10px] font-normal">({activeBasisData.date})</span>}
@@ -425,8 +428,8 @@ export function EChartsCrushMargin({
             </div>
 
             {/* 3. Oil Comparison */}
-            <div className="card p-2 md:p-4">
-                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
+            <div className="card p-0 md:p-4">
+                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2 px-2 md:px-0 pt-2 md:pt-0">
                     <span className="w-1 h-3 md:h-4 bg-[#FFD700] rounded"></span>
                     油脂板块价格对比 (豆、棕、菜)
                 </h3>
@@ -440,8 +443,8 @@ export function EChartsCrushMargin({
             </div>
 
             {/* 4. Futures Price */}
-            <div className="card p-2 md:p-4">
-                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
+            <div className="card p-0 md:p-4">
+                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2 px-2 md:px-0 pt-2 md:pt-0">
                     <span className="w-1 h-3 md:h-4 bg-[#FF8C00] rounded"></span>
                     期货价格走势 (双轴)
                 </h3>
@@ -455,8 +458,8 @@ export function EChartsCrushMargin({
             </div>
 
             {/* 5. Position Chart */}
-            <div className="card p-2 md:p-4">
-                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
+            <div className="card p-0 md:p-4">
+                <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2 px-2 md:px-0 pt-2 md:pt-0">
                     <span className="w-1 h-3 md:h-4 bg-[#FF6B6B] rounded"></span>
                     中粮期货豆油空单持仓走势
                 </h3>
