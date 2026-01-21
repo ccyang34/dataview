@@ -96,6 +96,25 @@ export function YearlyComparisonChart({
 }: YearlyComparisonChartProps) {
     const [isMobile, setIsMobile] = useState(false);
     const [showAll, setShowAll] = useState(false); // 默认显示近6年
+    const [hiddenYears, setHiddenYears] = useState<Set<number>>(new Set()); // 隐藏的年份
+
+    // 处理图例点击
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleLegendClick = (data: any) => {
+        const dataKey = data?.dataKey || data?.value;
+        if (!dataKey) return;
+        const year = parseInt(String(dataKey), 10);
+        if (isNaN(year)) return;
+        setHiddenYears(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(year)) {
+                newSet.delete(year);
+            } else {
+                newSet.add(year);
+            }
+            return newSet;
+        });
+    };
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -149,8 +168,8 @@ export function YearlyComparisonChart({
                     <button
                         onClick={() => setShowAll(!showAll)}
                         className={`px-3 py-1 text-xs rounded-md border transition-colors cursor-pointer ${showAll
-                                ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
-                                : 'bg-[var(--card)] text-[var(--muted)] border-[var(--border)] hover:border-[var(--primary)]'
+                            ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
+                            : 'bg-[var(--card)] text-[var(--muted)] border-[var(--border)] hover:border-[var(--primary)]'
                             }`}
                     >
                         {showAll ? '显示近6年' : '显示全部'}
@@ -221,10 +240,40 @@ export function YearlyComparisonChart({
                             />
                             <Legend
                                 verticalAlign="top"
-                                height={36}
-                                iconSize={isMobile ? 10 : 14}
-                                wrapperStyle={{ fontSize: isMobile ? '10px' : '12px' }}
-                                formatter={(value) => `${value}年`}
+                                height={isMobile ? 60 : 50}
+                                iconSize={isMobile ? 8 : 12}
+                                wrapperStyle={{ fontSize: isMobile ? '9px' : '11px', cursor: 'pointer' }}
+                                onClick={handleLegendClick}
+                                content={({ payload }) => (
+                                    <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 px-2">
+                                        {payload?.map((entry, index) => {
+                                            const year = parseInt(String(entry.value), 10);
+                                            const isHidden = hiddenYears.has(year);
+                                            return (
+                                                <span
+                                                    key={`legend-${index}`}
+                                                    onClick={() => handleLegendClick({ value: entry.value })}
+                                                    className="flex items-center gap-1 cursor-pointer transition-opacity"
+                                                    style={{ opacity: isHidden ? 0.4 : 1 }}
+                                                >
+                                                    <span
+                                                        className="inline-block w-3 h-0.5 rounded"
+                                                        style={{
+                                                            backgroundColor: isHidden ? '#ccc' : getYearColor(year),
+                                                            textDecoration: isHidden ? 'line-through' : 'none'
+                                                        }}
+                                                    />
+                                                    <span style={{
+                                                        color: isHidden ? '#999' : 'var(--foreground)',
+                                                        textDecoration: isHidden ? 'line-through' : 'none'
+                                                    }}>
+                                                        {year}年
+                                                    </span>
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             />
                             {/* 零线 */}
                             <ReferenceLine
@@ -257,7 +306,8 @@ export function YearlyComparisonChart({
                                     strokeWidth={index === 0 ? 2.5 : 1.5}
                                     dot={false}
                                     connectNulls
-                                    opacity={index === 0 ? 1 : 0.7}
+                                    opacity={hiddenYears.has(year) ? 0 : (index === 0 ? 1 : 0.7)}
+                                    hide={hiddenYears.has(year)}
                                 />
                             ))}
                         </LineChart>
