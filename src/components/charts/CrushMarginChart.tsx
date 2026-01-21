@@ -217,14 +217,15 @@ export function CrushMarginDashboard({
                             <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} minTickGap={isMobile ? 50 : 30} />
                             <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
                             <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilOverlay} fontSize={8} width={32} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} domain={['auto', 'auto']} />
-                            <Tooltip
-                                trigger={isMobile ? 'click' : 'hover'}
-                                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
-                                formatter={(value, name) => {
-                                    if (name === '豆油(右)') return [`${Number(value).toFixed(0)}`, String(name)];
-                                    return [`${Number(value).toFixed(0)}`, String(name)];
-                                }}
-                            />
+                            {!isMobile && (
+                                <Tooltip
+                                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
+                                    formatter={(value, name) => {
+                                        if (name === '豆油(右)') return [`${Number(value).toFixed(0)}`, String(name)];
+                                        return [`${Number(value).toFixed(0)}`, String(name)];
+                                    }}
+                                />
+                            )}
                             <Legend verticalAlign="top" height={28} wrapperStyle={{ cursor: 'pointer' }} content={renderInteractiveLegend(hiddenMargin, createLegendHandler(setHiddenMargin), { futuresMargin: COLORS.futuresMargin, grossMargin: COLORS.grossMargin, soybeanOilPrice: COLORS.oilOverlay })} />
                             <ReferenceLine y={0} yAxisId="left" stroke={COLORS.breakeven} strokeWidth={1.5} />
                             <Area yAxisId="left" type="monotone" dataKey="futuresMargin" name="盘面榨利" fill="url(#colorFuturesMargin)" stroke={COLORS.futuresMargin} strokeWidth={1} hide={hiddenMargin.has('futuresMargin')} />
@@ -253,14 +254,15 @@ export function CrushMarginDashboard({
                             <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} minTickGap={isMobile ? 50 : 30} />
                             <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
                             <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilMealRatio} fontSize={8} width={24} domain={['auto', 'auto']} />
-                            <Tooltip
-                                trigger={isMobile ? 'click' : 'hover'}
-                                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
-                                formatter={(value, name) => {
-                                    if (name === '油粕比' || name === '基差率%') return [`${Number(value).toFixed(2)}`, String(name)];
-                                    return [`${Number(value).toFixed(0)}`, String(name)];
-                                }}
-                            />
+                            {!isMobile && (
+                                <Tooltip
+                                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
+                                    formatter={(value, name) => {
+                                        if (name === '油粕比' || name === '基差率%') return [`${Number(value).toFixed(2)}`, String(name)];
+                                        return [`${Number(value).toFixed(0)}`, String(name)];
+                                    }}
+                                />
+                            )}
                             <Legend verticalAlign="top" height={28} wrapperStyle={{ cursor: 'pointer' }} content={renderInteractiveLegend(hiddenBasis, createLegendHandler(setHiddenBasis), { soybeanOilBasis: COLORS.oilBasis, soybeanMealBasis: COLORS.mealBasis, spotOilMealRatio: COLORS.oilMealRatio, oilBasisRate: COLORS.basisRate })} />
                             <ReferenceLine y={0} stroke="gray" strokeDasharray="3 3" yAxisId="left" opacity={0.5} />
                             <Line yAxisId="left" type="monotone" dataKey="soybeanOilBasis" name="豆油基差" stroke={COLORS.oilBasis} strokeDasharray="5 5" dot={false} strokeWidth={1.5} hide={hiddenBasis.has('soybeanOilBasis')} />
@@ -285,11 +287,12 @@ export function CrushMarginDashboard({
                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
                                 <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(oilData?.length || 0)} minTickGap={isMobile ? 50 : 30} />
                                 <YAxis stroke="var(--muted)" fontSize={8} domain={['auto', 'auto']} width={32} />
-                                <Tooltip
-                                    trigger={isMobile ? 'click' : 'hover'}
-                                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
-                                    formatter={(value, name) => [`${Number(value).toFixed(0)}`, String(name)]}
-                                />
+                                {!isMobile && (
+                                    <Tooltip
+                                        contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
+                                        formatter={(value, name) => [`${Number(value).toFixed(0)}`, String(name)]}
+                                    />
+                                )}
                                 <Legend verticalAlign="top" height={28} wrapperStyle={{ cursor: 'pointer' }} content={renderInteractiveLegend(hiddenOil, createLegendHandler(setHiddenOil), { soybeanOil: COLORS.soybeanOil, palmOil: COLORS.palm, rapeseedOil: COLORS.rapeseed })} />
                                 <Line type="monotone" dataKey="soybeanOil" name="豆油(Y)" stroke={COLORS.soybeanOil} dot={false} strokeWidth={2} hide={hiddenOil.has('soybeanOil')} />
                                 <Line type="monotone" dataKey="palmOil" name="棕榄油(P)" stroke={COLORS.palm} dot={false} strokeWidth={1.5} hide={hiddenOil.has('palmOil')} />
@@ -315,11 +318,12 @@ export function CrushMarginDashboard({
                             <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} minTickGap={isMobile ? 50 : 30} />
                             <YAxis yAxisId="left" stroke={COLORS.soybeanOil} fontSize={8} domain={['auto', 'auto']} width={32} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                             <YAxis yAxisId="right" orientation="right" stroke={COLORS.soybeanMeal} fontSize={8} domain={['auto', 'auto']} width={28} />
-                            <Tooltip
-                                trigger={isMobile ? 'click' : 'hover'}
-                                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
-                                formatter={(value, name) => [`${Number(value).toFixed(0)}`, String(name)]}
-                            />
+                            {!isMobile && (
+                                <Tooltip
+                                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
+                                    formatter={(value, name) => [`${Number(value).toFixed(0)}`, String(name)]}
+                                />
+                            )}
                             <Legend verticalAlign="top" height={28} wrapperStyle={{ cursor: 'pointer' }} content={renderInteractiveLegend(hiddenPrice, createLegendHandler(setHiddenPrice), { soybeanOilPrice: COLORS.soybeanOil, soybeanMealPrice: COLORS.soybeanMeal, soybeanNo2Price: COLORS.soybeanNo2 })} />
                             <Line yAxisId="left" type="monotone" dataKey="soybeanOilPrice" name="豆油" stroke={COLORS.soybeanOil} dot={false} strokeWidth={1.5} hide={hiddenPrice.has('soybeanOilPrice')} />
                             <Line yAxisId="right" type="monotone" dataKey="soybeanMealPrice" name="豆粕" stroke={COLORS.soybeanMeal} dot={false} strokeWidth={1.5} hide={hiddenPrice.has('soybeanMealPrice')} />
@@ -364,11 +368,12 @@ export function CrushMarginDashboard({
                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
                                 <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(positionData?.length || 0)} minTickGap={isMobile ? 50 : 30} />
                                 <YAxis stroke="var(--muted)" fontSize={8} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} width={28} domain={['auto', 'auto']} />
-                                <Tooltip
-                                    trigger={isMobile ? 'click' : 'hover'}
-                                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
-                                    formatter={(value, name) => [`${Number(value).toLocaleString()} 手`, String(name)]}
-                                />
+                                {!isMobile && (
+                                    <Tooltip
+                                        contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
+                                        formatter={(value, name) => [`${Number(value).toLocaleString()} 手`, String(name)]}
+                                    />
+                                )}
                                 <Legend verticalAlign="top" height={24} wrapperStyle={{ cursor: 'pointer' }} content={renderInteractiveLegend(hiddenPosition, createLegendHandler(setHiddenPosition), { Y2505: COLORS.Y2505, Y2509: COLORS.Y2509, Y2601: COLORS.Y2601, Y2605: COLORS.Y2605, Y2609: COLORS.Y2609 })} />
 
                                 <Area type="monotone" dataKey="Y2505" name="Y2505" stroke={COLORS.Y2505} fill="url(#colorY2505)" strokeWidth={1.5} hide={hiddenPosition.has('Y2505')} />

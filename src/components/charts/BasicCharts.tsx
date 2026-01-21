@@ -81,15 +81,16 @@ export function LineChart({
                     tickLine={false}
                     axisLine={false}
                 />
-                <Tooltip
-                    trigger={isMobile ? 'click' : 'hover'}
-                    contentStyle={{
-                        background: "var(--card)",
-                        border: "1px solid var(--border)",
-                        borderRadius: "var(--radius)",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                    }}
-                />
+                {!isMobile && (
+                    <Tooltip
+                        contentStyle={{
+                            background: "var(--card)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "var(--radius)",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                        }}
+                    />
+                )}
                 {showLegend && <Legend />}
                 <Line
                     type="monotone"
@@ -129,14 +130,15 @@ export function AreaChartComponent({
                     tickLine={false}
                     axisLine={false}
                 />
-                <Tooltip
-                    trigger={isMobile ? 'click' : 'hover'}
-                    contentStyle={{
-                        background: "var(--card)",
-                        border: "1px solid var(--border)",
-                        borderRadius: "var(--radius)",
-                    }}
-                />
+                {!isMobile && (
+                    <Tooltip
+                        contentStyle={{
+                            background: "var(--card)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "var(--radius)",
+                        }}
+                    />
+                )}
                 <defs>
                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
@@ -180,14 +182,15 @@ export function BarChartComponent({
                     tickLine={false}
                     axisLine={false}
                 />
-                <Tooltip
-                    trigger={isMobile ? 'click' : 'hover'}
-                    contentStyle={{
-                        background: "var(--card)",
-                        border: "1px solid var(--border)",
-                        borderRadius: "var(--radius)",
-                    }}
-                />
+                {!isMobile && (
+                    <Tooltip
+                        contentStyle={{
+                            background: "var(--card)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "var(--radius)",
+                        }}
+                    />
+                )}
                 <Bar
                     dataKey={dataKey}
                     fill="var(--primary)"
@@ -232,14 +235,15 @@ export function PieChartComponent({
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                 </Pie>
-                <Tooltip
-                    trigger={isMobile ? 'click' : 'hover'}
-                    contentStyle={{
-                        background: "var(--card)",
-                        border: "1px solid var(--border)",
-                        borderRadius: "var(--radius)",
-                    }}
-                />
+                {!isMobile && (
+                    <Tooltip
+                        contentStyle={{
+                            background: "var(--card)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "var(--radius)",
+                        }}
+                    />
+                )}
             </PieChart>
         </ResponsiveContainer>
     );
@@ -249,4 +253,5 @@ export function PieChartComponent({
 export function DonutChart(props: PieChartProps) {
     return <PieChartComponent {...props} innerRadius={50} />;
 }
+
 

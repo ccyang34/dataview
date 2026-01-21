@@ -224,21 +224,22 @@ export function YearlyComparisonChart({
                                 domain={['auto', 'auto']}
                                 tickFormatter={(v) => v.toFixed(0)}
                             />
-                            <Tooltip
-                                trigger={isMobile ? 'click' : 'hover'}
-                                contentStyle={{
-                                    background: "var(--card)",
-                                    border: "1px solid var(--border)",
-                                    borderRadius: "8px",
-                                    fontSize: 12,
-                                    padding: "8px 12px"
-                                }}
-                                labelFormatter={(label) => `日期: ${label}`}
-                                formatter={(value, name) => {
-                                    const numValue = typeof value === 'number' ? value : 0;
-                                    return [`${numValue.toFixed(0)} 元/吨`, `${name}年`];
-                                }}
-                            />
+                            {!isMobile && (
+                                <Tooltip
+                                    contentStyle={{
+                                        background: "var(--card)",
+                                        border: "1px solid var(--border)",
+                                        borderRadius: "8px",
+                                        fontSize: 12,
+                                        padding: "8px 12px"
+                                    }}
+                                    labelFormatter={(label) => `日期: ${label}`}
+                                    formatter={(value, name) => {
+                                        const numValue = typeof value === 'number' ? value : 0;
+                                        return [`${numValue.toFixed(0)} 元/吨`, `${name}年`];
+                                    }}
+                                />
+                            )}
                             <Legend
                                 verticalAlign="top"
                                 height={isMobile ? 60 : 50}
