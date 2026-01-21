@@ -109,10 +109,17 @@ export default function WarehousePage() {
     const [isLoadingItems, setIsLoadingItems] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const [showFilters, setShowFilters] = useState(false);
     const [globalFilter, setGlobalFilter] = useState("");
     const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([]);
     const [density, setDensity] = useState<'compact' | 'normal' | 'relaxed'>('normal');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    // 筛选状态
+    const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+    const [totalCount, setTotalCount] = useState(0);
+    const [hasFilters, setHasFilters] = useState(false);
+    const [isLimited, setIsLimited] = useState(false);
 
     // TanStack Table setup
     const tableColumns = useMemo<ColumnDef<any>[]>(() => {
@@ -192,16 +199,27 @@ export default function WarehousePage() {
         }
     };
 
-    const fetchTableData = async (item: DbItem) => {
+    const fetchTableData = async (item: DbItem, filters: Record<string, string> = {}) => {
         setActiveItem(item);
         setIsLoadingData(true);
         try {
-            const res = await fetch(`/api/warehouse/data?table=${item.name}`);
+            // 构建筛选参数
+            const activeFilters = Object.fromEntries(
+                Object.entries(filters).filter(([_, v]) => v && v.trim() !== '')
+            );
+            const filtersParam = Object.keys(activeFilters).length > 0
+                ? `&filters=${encodeURIComponent(JSON.stringify(activeFilters))}`
+                : '';
+
+            const res = await fetch(`/api/warehouse/data?table=${item.name}${filtersParam}`);
             const data = await res.json();
             if (data.error) throw new Error(data.error);
             setRawData(data.data);
             setColumns(data.columns);
             setColumnOrder(data.columns);
+            setTotalCount(data.totalCount || data.data.length);
+            setHasFilters(data.hasFilters || false);
+            setIsLimited(data.isLimited || false);
             // On mobile, close sidebar after selecting a table
             if (window.innerWidth < 1024) {
                 setIsSidebarOpen(false);
@@ -210,6 +228,21 @@ export default function WarehousePage() {
             setAuthError(err.message);
         } finally {
             setIsLoadingData(false);
+        }
+    };
+
+    // 应用筛选
+    const applyFilters = () => {
+        if (activeItem) {
+            fetchTableData(activeItem, columnFilters);
+        }
+    };
+
+    // 清除筛选
+    const clearFilters = () => {
+        setColumnFilters({});
+        if (activeItem) {
+            fetchTableData(activeItem, {});
         }
     };
 
@@ -277,15 +310,38 @@ export default function WarehousePage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <div className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-[var(--background)] rounded-lg border border-[var(--border)]">
+                    <form
+                        className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-[var(--background)] rounded-lg border border-[var(--border)]"
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            if (activeItem && globalFilter.trim()) {
+                                // 触发数据库层面搜索
+                                setIsLoadingData(true);
+                                fetch(`/api/warehouse/data?table=${activeItem.name}&search=${encodeURIComponent(globalFilter)}`)
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        if (data.error) throw new Error(data.error);
+                                        setRawData(data.data);
+                                        setColumns(data.columns);
+                                        setColumnOrder(data.columns);
+                                        setTotalCount(data.totalCount || data.data.length);
+                                        setHasFilters(data.hasFilters || false);
+                                        setIsLimited(data.isLimited || false);
+                                    })
+                                    .catch(err => setAuthError(err.message))
+                                    .finally(() => setIsLoadingData(false));
+                            }
+                        }}
+                    >
                         <Search className="w-3.5 h-3.5 text-[var(--muted)]" />
                         <input
                             value={globalFilter ?? ''}
                             onChange={e => setGlobalFilter(e.target.value)}
-                            placeholder="全局搜索数据..."
+                            placeholder="全局搜索数据库..."
                             className="bg-transparent border-none outline-none text-xs w-48"
                         />
-                    </div>
+                        <button type="submit" className="text-[10px] text-[var(--primary)] hover:underline">搜索</button>
+                    </form>
                     <button
                         onClick={() => setShowSettings(!showSettings)}
                         className={`p-2 rounded-lg transition-colors ${showSettings ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "hover:bg-[var(--card-hover)]"}`}
@@ -376,13 +432,26 @@ export default function WarehousePage() {
                                     </div>
                                     <div className="min-w-0">
                                         <h2 className="text-sm font-bold leading-none truncate">{activeItem.name}</h2>
-                                        <p className="text-[10px] text-[var(--muted)] mt-1">前100行数据</p>
+                                        <p className="text-[10px] text-[var(--muted)] mt-1">
+                                            {hasFilters
+                                                ? `匹配 ${rawData.length}${isLimited ? '+' : ''} 条 / 共 ${totalCount} 条`
+                                                : `预览前 ${rawData.length} 条`
+                                            }
+                                        </p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-center gap-2">
                                     <button
-                                        onClick={() => fetchTableData(activeItem)}
+                                        onClick={() => setShowFilters(!showFilters)}
+                                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${showFilters || hasFilters ? "bg-[var(--primary)] text-white" : "bg-[var(--card)] border border-[var(--border)] hover:bg-[var(--card-hover)]"}`}
+                                    >
+                                        <Filter className="w-3.5 h-3.5" />
+                                        筛选
+                                        {hasFilters && <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded text-[10px]">✓</span>}
+                                    </button>
+                                    <button
+                                        onClick={() => fetchTableData(activeItem, columnFilters)}
                                         className="p-2 hover:bg-[var(--card-hover)] rounded-lg text-[var(--muted)]"
                                         title="重新加载数据"
                                     >
@@ -394,6 +463,47 @@ export default function WarehousePage() {
                                     </button>
                                 </div>
                             </div>
+
+                            {/* 筛选面板 */}
+                            {showFilters && (
+                                <div className="p-4 border-b border-[var(--border)] bg-[var(--card)]/50 animate-in slide-in-from-top-2 duration-200">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2 text-sm font-bold">
+                                            <Filter className="w-4 h-4 text-[var(--primary)]" />
+                                            字段筛选
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={clearFilters}
+                                                className="text-xs text-[var(--muted)] hover:text-[var(--danger)] transition-colors"
+                                            >
+                                                清除全部
+                                            </button>
+                                            <button
+                                                onClick={applyFilters}
+                                                className="px-3 py-1 bg-[var(--primary)] text-white text-xs rounded-lg hover:bg-[var(--primary-hover)] transition-colors"
+                                            >
+                                                应用筛选
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                                        {columns.map(col => (
+                                            <div key={col} className="flex flex-col gap-1">
+                                                <label className="text-[10px] text-[var(--muted)] truncate" title={col}>{col}</label>
+                                                <input
+                                                    type="text"
+                                                    value={columnFilters[col] || ''}
+                                                    onChange={e => setColumnFilters(prev => ({ ...prev, [col]: e.target.value }))}
+                                                    onKeyDown={e => e.key === 'Enter' && applyFilters()}
+                                                    placeholder="输入筛选..."
+                                                    className="px-2 py-1 text-xs bg-[var(--background)] border border-[var(--border)] rounded focus:ring-1 focus:ring-[var(--primary)] outline-none"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Settings Panel */}
                             {showSettings && (
