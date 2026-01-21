@@ -317,8 +317,8 @@ export function EChartsCrushMargin({
         const priceMap = new Map(data.map(d => [d.date, d.soybeanOilPrice]));
         const priceSeriesData = dates.map(date => priceMap.get(date) || undefined);
 
-        // Map spot price data to position dates
-        const spotPriceMap = new Map(oilData?.map(d => [d.date, d.soybeanOil]) || []);
+        // Map spot price data (Price + Basis) to position dates
+        const spotPriceMap = new Map(data.map(d => [d.date, d.soybeanOilPrice + d.soybeanOilBasis]));
         const spotPriceSeriesData = dates.map(date => spotPriceMap.get(date) || undefined);
 
         const seriesNames = ['Y2505', 'Y2509', 'Y2601', 'Y2605', 'Y2609'];
