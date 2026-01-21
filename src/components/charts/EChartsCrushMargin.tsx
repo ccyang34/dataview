@@ -317,6 +317,10 @@ export function EChartsCrushMargin({
         const priceMap = new Map(data.map(d => [d.date, d.soybeanOilPrice]));
         const priceSeriesData = dates.map(date => priceMap.get(date) || undefined);
 
+        // Map spot price data to position dates
+        const spotPriceMap = new Map(oilData?.map(d => [d.date, d.soybeanOil]) || []);
+        const spotPriceSeriesData = dates.map(date => spotPriceMap.get(date) || undefined);
+
         const seriesNames = ['Y2505', 'Y2509', 'Y2601', 'Y2605', 'Y2609'];
         const series: any[] = seriesNames.map(name => ({
             name,
@@ -329,7 +333,7 @@ export function EChartsCrushMargin({
             itemStyle: { color: (COLORS as any)[name] }
         }));
 
-        // Add Price Series
+        // Add Future Price Series
         series.push({
             name: '豆油价格(右)',
             type: 'line',
@@ -337,13 +341,24 @@ export function EChartsCrushMargin({
             data: priceSeriesData,
             symbol: 'none',
             itemStyle: { color: COLORS.soybeanOil },
-            lineStyle: { width: 1.5, type: 'dashed' } // Dashed line as requested
+            lineStyle: { width: 1.5, type: 'dashed' }
+        });
+
+        // Add Spot Price Series
+        series.push({
+            name: '豆油现货(右)',
+            type: 'line',
+            yAxisIndex: 1, // Right axis
+            data: spotPriceSeriesData,
+            symbol: 'none',
+            itemStyle: { color: '#FF4500' }, // Distinct OrangeRed for Spot
+            lineStyle: { width: 1.5, type: 'dashed' }
         });
 
         return {
             tooltip: { trigger: 'axis', backgroundColor: 'var(--card)', borderColor: 'var(--border)', textStyle: { color: 'var(--foreground)' }, confine: true, padding: [4, 8] },
             legend: {
-                data: [...seriesNames, '豆油价格(右)'],
+                data: [...seriesNames, '豆油价格(右)', '豆油现货(右)'],
                 top: 0,
                 textStyle: { fontSize: 10 },
                 itemWidth: 10, itemHeight: 6,
