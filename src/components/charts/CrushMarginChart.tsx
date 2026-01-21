@@ -179,13 +179,6 @@ export function CrushMarginDashboard({
     const marginMin = Math.min(...data.map(d => d.grossMargin));
     const maxMarginPoint = data.find(d => d.grossMargin === marginMax);
     const minMarginPoint = data.find(d => d.grossMargin === marginMin);
-    // 交互数据状态
-    const [activeData, setActiveData] = useState<any>(null);
-    const [activeBasisData, setActiveBasisData] = useState<any>(null);
-
-    // 计算当前显示的数据 (如果有交互则显示交互数据，否则显示最新数据)
-    const currentData = activeData || latest;
-    const currentBasisData = activeBasisData || latest;
 
     return (
         <div className="space-y-3 md:space-y-6">
@@ -194,44 +187,26 @@ export function CrushMarginDashboard({
                 <div>
                     <h2 className="text-xl font-bold">{title}</h2>
                     <p className="text-sm text-[var(--muted)]">
-                        {/* Mobile: Show date from interaction */}
-                        {isMobile && activeData ? (
-                            <span className="text-[var(--primary)] font-medium">📅 {activeData.date}</span>
-                        ) : (
-                            <span>最新数据: {latestDate}</span>
-                        )}
-                        | 现货榨利:
-                        <span className={currentData.grossMargin >= 0 ? "text-[var(--success)] ml-1" : "text-[var(--danger)] ml-1"}>
-                            {currentData.grossMargin.toFixed(0)} 元/吨
+                        最新数据: {latestDate} | 现货榨利:
+                        <span className={latest.grossMargin >= 0 ? "text-[var(--success)] ml-1" : "text-[var(--danger)] ml-1"}>
+                            {latest.grossMargin.toFixed(0)} 元/吨
                         </span>
                     </p>
                 </div>
-                {!isMobile && (
-                    <div className="text-xs px-3 py-1.5 rounded-md bg-amber-100 text-amber-800">
-                        数据截止: {latestDate}
-                    </div>
-                )}
+                <div className="text-xs px-3 py-1.5 rounded-md bg-amber-100 text-amber-800">
+                    数据截止: {latestDate}
+                </div>
             </div>
 
             {/* 1. Crush Margin Chart - 大豆压榨利润走势 */}
             <div className="card p-2 md:p-4">
                 <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
                     <span className="w-1 h-3 md:h-4 bg-[#800080] rounded"></span>
-                    压榨利润走势 - 现货: {currentData.grossMargin.toFixed(0)}
-                    {activeData && <span className="text-[var(--muted)] ml-2 text-[10px] font-normal">({activeData.date})</span>}
+                    压榨利润走势 - 现货: {latest.grossMargin.toFixed(0)}
                 </h3>
                 <div className="h-[180px] md:h-[260px]">
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart
-                            data={data}
-                            margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
-                            onMouseMove={(state: any) => {
-                                if (state.activePayload && state.activePayload.length) {
-                                    setActiveData(state.activePayload[0].payload);
-                                }
-                            }}
-                            onMouseLeave={() => setActiveData(null)}
-                        >
+                        <ComposedChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                             <defs>
                                 <linearGradient id="colorFuturesMargin" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor={COLORS.futuresMargin} stopOpacity={0.4} />
@@ -243,9 +218,6 @@ export function CrushMarginDashboard({
                             <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
                             <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilOverlay} fontSize={8} width={32} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} domain={['auto', 'auto']} />
                             <Tooltip
-                                content={isMobile ? () => null : undefined} // Mobile: content is null (invisible)
-                                cursor={{ stroke: 'var(--muted)', strokeWidth: 1, strokeDasharray: '4 4' }} // Keep cursor visible
-                                wrapperStyle={isMobile ? { display: 'none' } : undefined} // Double safety to hide the box
                                 contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                 formatter={(value, name) => {
                                     if (name === '豆油(右)') return [`${Number(value).toFixed(0)}`, String(name)];
@@ -271,29 +243,16 @@ export function CrushMarginDashboard({
             <div className="card p-2 md:p-4">
                 <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2">
                     <span className="w-1 h-3 md:h-4 bg-[#228B22] rounded"></span>
-                    基差走势 & 油粕比: {currentBasisData.spotOilMealRatio.toFixed(3)}
-                    {activeBasisData && <span className="text-[var(--muted)] ml-2 text-[10px] font-normal">({activeBasisData.date})</span>}
+                    基差走势 & 油粕比: {latest.spotOilMealRatio.toFixed(3)}
                 </h3>
                 <div className="h-[180px] md:h-[260px]">
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart
-                            data={data}
-                            margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
-                            onMouseMove={(state: any) => {
-                                if (state.activePayload && state.activePayload.length) {
-                                    setActiveBasisData(state.activePayload[0].payload);
-                                }
-                            }}
-                            onMouseLeave={() => setActiveBasisData(null)}
-                        >
+                        <ComposedChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
                             <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(data.length)} minTickGap={isMobile ? 50 : 30} />
                             <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
                             <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilMealRatio} fontSize={8} width={24} domain={['auto', 'auto']} />
                             <Tooltip
-                                content={isMobile ? () => null : undefined}
-                                cursor={{ stroke: 'var(--muted)', strokeWidth: 1, strokeDasharray: '4 4' }}
-                                wrapperStyle={isMobile ? { display: 'none' } : undefined}
                                 contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                 formatter={(value, name) => {
                                     if (name === '油粕比' || name === '基差率%') return [`${Number(value).toFixed(2)}`, String(name)];
