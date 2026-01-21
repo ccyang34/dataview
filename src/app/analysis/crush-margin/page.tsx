@@ -3,8 +3,8 @@
 
 import { useEffect, useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
-import { CrushMarginDashboard, PositionData, OilComparisonData } from "@/components/charts/CrushMarginChart";
-import { YearlyComparisonChart, YearlyDataPoint } from "@/components/charts/YearlyComparisonChart";
+import { EChartsCrushMargin, PositionData, OilComparisonData } from "@/components/charts/EChartsCrushMargin";
+import { EChartsYearly, YearlyDataPoint } from "@/components/charts/EChartsYearly";
 import { CrushMarginData } from "@/lib/crush-margin";
 import { RefreshCw, Calendar } from "lucide-react";
 
@@ -83,7 +83,7 @@ export default function AnalysisPage() {
     const filteredPositionData = getFilteredData(positionData, selectedPeriod);
     const filteredOilData = getFilteredData(oilData, selectedPeriod);
 
-    // Get period label for title
+    // Get period label for title (kept for logic, though removed from display if needed)
     const periodLabel = TIME_PERIODS.find(p => p.days === selectedPeriod)?.label || "自定义";
 
     return (
@@ -139,9 +139,9 @@ export default function AnalysisPage() {
                     </div>
                 )}
 
-                {/* Charts Dashboard */}
+                {/* Charts Dashboard (ECharts Version) */}
                 {!loading && !error && (
-                    <CrushMarginDashboard
+                    <EChartsCrushMargin
                         data={filteredMarginData}
                         positionData={filteredPositionData}
                         oilData={filteredOilData}
@@ -161,10 +161,10 @@ export default function AnalysisPage() {
                     </div>
                 )}
 
-                {/* 现货榨利年度复合折线图 - 使用全部数据，不受时间筛选影响 */}
+                {/* 现货榨利年度复合折线图 - ECharts */}
                 {!loading && !error && rawData.length > 0 && (
                     <div className="mt-8">
-                        <YearlyComparisonChart
+                        <EChartsYearly
                             data={rawData.map(d => ({ date: d.date, value: d.grossMargin }))}
                             title="现货榨利年度复合对比"
                             valueLabel="榨利"
@@ -173,10 +173,10 @@ export default function AnalysisPage() {
                     </div>
                 )}
 
-                {/* 豆油现货价格年度复合折线图 */}
+                {/* 豆油现货价格年度复合折线图 - ECharts */}
                 {!loading && !error && rawData.length > 0 && (
                     <div className="mt-8">
-                        <YearlyComparisonChart
+                        <EChartsYearly
                             data={rawData.map(d => ({
                                 date: d.date,
                                 value: d.soybeanOilPrice + d.soybeanOilBasis // 豆油现货 = 期货 + 基差
