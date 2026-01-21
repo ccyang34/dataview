@@ -111,21 +111,37 @@ body {
 *,
 *::before,
 *::after {
-  -webkit-tap-highlight-color: transparent !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
   -webkit-touch-callout: none;
 }
 
-/* 图表容器额外处理 */
+/* 图表容器额外处理 - 禁用所有交互视觉反馈 */
 .card,
 .recharts-wrapper,
 .recharts-legend-wrapper,
 .recharts-surface,
+.recharts-responsive-container,
 svg,
-.recharts-responsive-container {
-  -webkit-tap-highlight-color: transparent !important;
+div[style*="cursor"],
+span[style*="cursor"] {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
   outline: none !important;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* 禁用 focus 和 active 状态的边框/高亮 */
+.card:focus,
+.card:active,
+.recharts-wrapper:focus,
+.recharts-wrapper:active,
+svg:focus,
+svg:active,
+div:focus,
+div:active {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
 }
 
 /* 滚动条 */
