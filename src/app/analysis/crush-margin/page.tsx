@@ -176,6 +176,21 @@ export default function AnalysisPage() {
                         />
                     </div>
                 )}
+
+                {/* 豆油现货价格年度复合折线图 */}
+                {!loading && !error && rawData.length > 0 && (
+                    <div className="mt-8">
+                        <YearlyComparisonChart
+                            data={rawData.map(d => ({
+                                date: d.date,
+                                value: d.soybeanOilPrice + d.soybeanOilBasis // 豆油现货 = 期货 + 基差
+                            }))}
+                            title="豆油现货价格年度复合对比"
+                            valueLabel="价格"
+                            height={360}
+                        />
+                    </div>
+                )}
             </main>
         </div>
     );
