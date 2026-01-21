@@ -268,6 +268,7 @@ export function EChartsYearly({
                         option={getOption()}
                         style={{ height: '100%', width: '100%' }}
                         opts={{ renderer: 'svg' }}
+                        notMerge={true}
                     />
                 </div>
                 {/* Footer Stats */}
