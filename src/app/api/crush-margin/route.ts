@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { CrushMarginData } from "@/lib/crush-margin";
+import { supabase } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
 
@@ -114,93 +115,145 @@ async function fetchJiaoyifamenBasis(type: string): Promise<{ date: string, basi
     }
 }
 
-export async function GET() {
+// 从 Supabase 获取缓存数据
+async function fetchFromSupabase(): Promise<{
+    oilPrice: { date: string, price: number }[],
+    mealPrice: { date: string, price: number }[],
+    beanPrice: { date: string, price: number }[],
+    oilBasis: { date: string, basis: number }[],
+    mealBasis: { date: string, basis: number }[]
+} | null> {
     try {
-        console.log("Fetching real-time crush margin data (Python-style)...");
+        console.log("Trying to fetch from Supabase cache...");
 
-        // 按照 Python 脚本逻辑：
-        // 1. 期货价格从 Sina 获取 (Y0, M0, B0)
-        // 2. 基差从交易法门获取 (Y, M)
-        const [oilPrice, mealPrice, beanPrice, oilBasis, mealBasis] = await Promise.all([
-            fetchSinaFuturesPrice('Y0'),   // 豆油期货价格
-            fetchSinaFuturesPrice('M0'),   // 豆粕期货价格
-            fetchSinaFuturesPrice('B0'),   // 豆二期货价格
-            fetchJiaoyifamenBasis('Y'),    // 豆油基差
-            fetchJiaoyifamenBasis('M'),    // 豆粕基差
+        // 并行获取所有数据
+        const [oilRes, mealRes, beanRes, oilBasisRes, mealBasisRes] = await Promise.all([
+            supabase.from('futures_price').select('trade_date, close_price').eq('symbol', 'Y0').order('trade_date', { ascending: true }),
+            supabase.from('futures_price').select('trade_date, close_price').eq('symbol', 'M0').order('trade_date', { ascending: true }),
+            supabase.from('futures_price').select('trade_date, close_price').eq('symbol', 'B0').order('trade_date', { ascending: true }),
+            supabase.from('basis_data').select('trade_date, basis').eq('variety', 'Y').order('trade_date', { ascending: true }),
+            supabase.from('basis_data').select('trade_date, basis').eq('variety', 'M').order('trade_date', { ascending: true })
         ]);
 
-        console.log(`Raw data: OilPrice=${oilPrice.length}, MealPrice=${mealPrice.length}, BeanPrice=${beanPrice.length}, OilBasis=${oilBasis.length}, MealBasis=${mealBasis.length}`);
+        // 检查是否有数据
+        if (!oilRes.data?.length || !mealRes.data?.length || !beanRes.data?.length) {
+            console.log("Supabase cache is empty or incomplete");
+            return null;
+        }
+
+        console.log(`Supabase cache: OilPrice=${oilRes.data.length}, MealPrice=${mealRes.data.length}, BeanPrice=${beanRes.data.length}`);
+
+        return {
+            oilPrice: oilRes.data.map(d => ({ date: d.trade_date, price: d.close_price })),
+            mealPrice: mealRes.data.map(d => ({ date: d.trade_date, price: d.close_price })),
+            beanPrice: beanRes.data.map(d => ({ date: d.trade_date, price: d.close_price })),
+            oilBasis: oilBasisRes.data?.map(d => ({ date: d.trade_date, basis: d.basis })) || [],
+            mealBasis: mealBasisRes.data?.map(d => ({ date: d.trade_date, basis: d.basis })) || []
+        };
+    } catch (error) {
+        console.error("Error fetching from Supabase:", error);
+        return null;
+    }
+}
+
+// 从原始API获取数据（备选方案）
+async function fetchFromOriginalAPIs(): Promise<{
+    oilPrice: { date: string, price: number }[],
+    mealPrice: { date: string, price: number }[],
+    beanPrice: { date: string, price: number }[],
+    oilBasis: { date: string, basis: number }[],
+    mealBasis: { date: string, basis: number }[]
+}> {
+    console.log("Fetching from original APIs (Sina + Jiaoyifamen)...");
+
+    const [oilPrice, mealPrice, beanPrice, oilBasis, mealBasis] = await Promise.all([
+        fetchSinaFuturesPrice('Y0'),
+        fetchSinaFuturesPrice('M0'),
+        fetchSinaFuturesPrice('B0'),
+        fetchJiaoyifamenBasis('Y'),
+        fetchJiaoyifamenBasis('M'),
+    ]);
+
+    return { oilPrice, mealPrice, beanPrice, oilBasis, mealBasis };
+}
+
+// 计算榨利数据
+function calculateCrushMargins(
+    oilPrice: { date: string, price: number }[],
+    mealPrice: { date: string, price: number }[],
+    beanPrice: { date: string, price: number }[],
+    oilBasis: { date: string, basis: number }[],
+    mealBasis: { date: string, basis: number }[]
+): CrushMarginData[] {
+    const oilPriceMap = new Map(oilPrice.map(d => [d.date, d.price]));
+    const mealPriceMap = new Map(mealPrice.map(d => [d.date, d.price]));
+    const beanPriceMap = new Map(beanPrice.map(d => [d.date, d.price]));
+    const oilBasisMap = new Map(oilBasis.map(d => [d.date, d.basis]));
+    const mealBasisMap = new Map(mealBasis.map(d => [d.date, d.basis]));
+
+    const commonDates = beanPrice
+        .map(d => d.date)
+        .filter(date => oilPriceMap.has(date) && mealPriceMap.has(date))
+        .sort();
+
+    return commonDates.map(date => {
+        const oilP = oilPriceMap.get(date)!;
+        const mealP = mealPriceMap.get(date)!;
+        const beanP = beanPriceMap.get(date)!;
+        const oilB = oilBasisMap.get(date) || 0;
+        const mealB = mealBasisMap.get(date) || 0;
+
+        const grossMargin = (oilP + oilB) * OIL_OUTPUT_RATE + (mealP + mealB) * MEAL_OUTPUT_RATE - beanP - CRUSH_COST;
+        const futuresMargin = oilP * OIL_OUTPUT_RATE + mealP * MEAL_OUTPUT_RATE - beanP - CRUSH_COST;
+        const spotOilMealRatio = (oilP + oilB) / (mealP + mealB);
+        const oilBasisRate = (oilB / oilP) * 100;
+
+        return {
+            date,
+            soybeanOilPrice: oilP,
+            soybeanMealPrice: mealP,
+            soybeanNo2Price: beanP,
+            soybeanOilBasis: oilB,
+            soybeanMealBasis: mealB,
+            grossMargin,
+            futuresMargin,
+            spotOilMealRatio,
+            oilBasisRate
+        };
+    });
+}
+
+export async function GET() {
+    try {
+        console.log("Fetching crush margin data...");
+
+        // 1. 优先从 Supabase 获取缓存数据
+        let data = await fetchFromSupabase();
+        let source = 'supabase-cache';
+
+        // 2. 如果缓存不可用，回退到原始API
+        if (!data) {
+            data = await fetchFromOriginalAPIs();
+            source = 'real-time (Sina + Jiaoyifamen)';
+        }
+
+        const { oilPrice, mealPrice, beanPrice, oilBasis, mealBasis } = data;
+
+        console.log(`Data source: ${source}, OilPrice=${oilPrice.length}, MealPrice=${mealPrice.length}, BeanPrice=${beanPrice.length}`);
 
         if (oilPrice.length === 0 || mealPrice.length === 0 || beanPrice.length === 0) {
             return NextResponse.json({
                 success: false,
-                error: "Failed to fetch price data from Sina API",
+                error: "Failed to fetch price data",
                 data: []
             }, { status: 500 });
         }
 
-        // Build maps for quick lookup
-        const oilPriceMap = new Map(oilPrice.map((d: { date: string, price: number }) => [d.date, d.price]));
-        const mealPriceMap = new Map(mealPrice.map((d: { date: string, price: number }) => [d.date, d.price]));
-        const beanPriceMap = new Map(beanPrice.map((d: { date: string, price: number }) => [d.date, d.price]));
-        const oilBasisMap = new Map(oilBasis.map((d: { date: string, basis: number }) => [d.date, d.basis]));
-        const mealBasisMap = new Map(mealBasis.map((d: { date: string, basis: number }) => [d.date, d.basis]));
-
-        // Find common dates (all three price sources must have data)
-        // Use beanPrice as base since it usually has the most complete history
-        const commonDates = beanPrice
-            .map((d: { date: string, price: number }) => d.date)
-            .filter((date: string) => oilPriceMap.has(date) && mealPriceMap.has(date))
-            .sort();
-
-        console.log(`Common dates: ${commonDates.length}`);
-
-        // Calculate crush margins
-        const marginData: CrushMarginData[] = commonDates.map((date: string) => {
-            const oilP = oilPriceMap.get(date)!;
-            const mealP = mealPriceMap.get(date)!;
-            const beanP = beanPriceMap.get(date)!;
-            // 基差可能不存在，默认为 0
-            const oilB = oilBasisMap.get(date) || 0;
-            const mealB = mealBasisMap.get(date) || 0;
-
-            // 现货榨利(含基差) - Python: 合并['榨利']
-            const grossMargin =
-                (oilP + oilB) * OIL_OUTPUT_RATE +
-                (mealP + mealB) * MEAL_OUTPUT_RATE -
-                beanP -
-                CRUSH_COST;
-
-            // 盘面榨利(不含基差) - Python: 合并['盘面榨利']
-            const futuresMargin =
-                oilP * OIL_OUTPUT_RATE +
-                mealP * MEAL_OUTPUT_RATE -
-                beanP -
-                CRUSH_COST;
-
-            // 现货油粕比 - Python: 合并['现货油粕比']
-            const spotOilMealRatio =
-                (oilP + oilB) / (mealP + mealB);
-
-            // 豆油基差率(%) - Python: 合并['豆油基差率']
-            const oilBasisRate = (oilB / oilP) * 100;
-
-            return {
-                date,
-                soybeanOilPrice: oilP,
-                soybeanMealPrice: mealP,
-                soybeanNo2Price: beanP,
-                soybeanOilBasis: oilB,
-                soybeanMealBasis: mealB,
-                grossMargin,
-                futuresMargin,
-                spotOilMealRatio,
-                oilBasisRate
-            };
-        });
+        // 3. 计算榨利数据
+        const marginData = calculateCrushMargins(oilPrice, mealPrice, beanPrice, oilBasis, mealBasis);
 
         const latest = marginData[marginData.length - 1];
-        console.log(`Calculated ${marginData.length} margin records. Latest: ${latest?.date}, OilPrice: ${latest?.soybeanOilPrice}, OilBasis: ${latest?.soybeanOilBasis}`);
+        console.log(`Calculated ${marginData.length} margin records. Latest: ${latest?.date}`);
 
         return NextResponse.json({
             success: true,
@@ -209,7 +262,7 @@ export async function GET() {
                 count: marginData.length,
                 latest: latest,
                 updatedAt: new Date().toISOString(),
-                source: 'real-time (Sina + Jiaoyifamen)'
+                source
             }
         });
 

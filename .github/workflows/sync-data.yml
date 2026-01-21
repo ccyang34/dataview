@@ -1,0 +1,37 @@
+name: Sync Data to Supabase
+
+on:
+  schedule:
+    # 每天北京时间 16:30 运行（UTC 08:30）
+    - cron: '30 8 * * 1-5'
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Data Sync
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.VERCEL_URL }}/api/sync-data" \
+            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
+            -H "Content-Type: application/json")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+          
+          if [ "$http_code" != "200" ]; then
+            echo "Sync failed with status $http_code"
+            exit 1
+          fi
+          
+          echo "Sync completed successfully"
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "Data sync failed! Check the logs above."
+          # 可以添加其他通知方式，如发送邮件或推送通知
