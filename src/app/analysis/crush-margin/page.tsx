@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { CrushMarginDashboard, PositionData, OilComparisonData } from "@/components/charts/CrushMarginChart";
+import { YearlyComparisonChart, YearlyDataPoint } from "@/components/charts/YearlyComparisonChart";
 import { CrushMarginData } from "@/lib/crush-margin";
 import { RefreshCw, Calendar } from "lucide-react";
 
@@ -161,6 +162,18 @@ export default function AnalysisPage() {
                             <p>数据源：交易法门(基差/持仓) / Sina(期货价格)</p>
                             <p>共 {filteredMarginData.length} 条榨利数据 | {filteredPositionData.length} 条持仓数据 | {filteredOilData.length} 条油脂对比数据</p>
                         </div>
+                    </div>
+                )}
+
+                {/* 现货榨利年度复合折线图 - 使用全部数据，不受时间筛选影响 */}
+                {!loading && !error && rawData.length > 0 && (
+                    <div className="mt-8">
+                        <YearlyComparisonChart
+                            data={rawData.map(d => ({ date: d.date, value: d.grossMargin }))}
+                            title="现货榨利年度复合对比"
+                            valueLabel="榨利"
+                            height={360}
+                        />
                     </div>
                 )}
             </main>
