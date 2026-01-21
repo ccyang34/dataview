@@ -143,7 +143,7 @@ export function CrushMarginDashboard({
                             key={`legend-${index}`}
                             onClick={() => handler({ dataKey: key, value: entry.value })}
                             className="flex items-center gap-1 cursor-pointer transition-opacity hover:opacity-80"
-                            style={{ opacity: isHidden ? 0.4 : 1 }}
+                            style={{ opacity: isHidden ? 0.4 : 1, WebkitTapHighlightColor: 'transparent' }}
                         >
                             <span
                                 className="inline-block w-3 h-0.5 rounded"

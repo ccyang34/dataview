@@ -104,6 +104,15 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   line-height: 1.6;
+  -webkit-tap-highlight-color: transparent; /* 禁用移动端触控高亮 */
+}
+
+/* 图表交互元素禁用触控高亮 */
+.recharts-wrapper,
+.recharts-legend-wrapper,
+.recharts-surface,
+svg {
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* 滚动条 */
