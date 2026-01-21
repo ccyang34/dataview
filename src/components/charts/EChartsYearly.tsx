@@ -259,7 +259,7 @@ export function EChartsYearly({
                 </div>
             </div>
 
-            <div className="card p-0 md:p-4">
+            <div className="card p-0 pb-2 md:p-4">
                 <div style={{ height: isMobile ? 280 : height }}>
                     <ReactECharts
                         option={getOption()}

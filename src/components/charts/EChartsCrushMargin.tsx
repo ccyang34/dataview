@@ -316,8 +316,8 @@ export function EChartsCrushMargin({
         const series = seriesNames.map(name => ({
             name,
             type: 'line',
-            stack: 'Total',
-            areaStyle: {},
+            // stack removed for non-stacked area chart
+            areaStyle: { opacity: 0.3 }, // Added opacity for visibility
             showSymbol: false,
             // @ts-ignore
             data: positionData.map(d => d[name] || 0),
@@ -389,7 +389,7 @@ export function EChartsCrushMargin({
             </div>
 
             {/* 1. Crush Margin Chart */}
-            <div className="card p-0 md:p-4">
+            <div className="card p-0 pb-2 md:p-4">
                 <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2 px-2 md:px-0 pt-2 md:pt-0">
                     <span className="w-1 h-3 md:h-4 bg-[#800080] rounded"></span>
                     压榨利润走势 - 现货: {currentData.grossMargin.toFixed(0)}
@@ -411,7 +411,7 @@ export function EChartsCrushMargin({
             </div>
 
             {/* 2. Basis Chart */}
-            <div className="card p-0 md:p-4">
+            <div className="card p-0 pb-2 md:p-4">
                 <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2 px-2 md:px-0 pt-2 md:pt-0">
                     <span className="w-1 h-3 md:h-4 bg-[#228B22] rounded"></span>
                     基差走势 & 油粕比: {currentBasisData.spotOilMealRatio.toFixed(3)}
@@ -428,7 +428,7 @@ export function EChartsCrushMargin({
             </div>
 
             {/* 3. Oil Comparison */}
-            <div className="card p-0 md:p-4">
+            <div className="card p-0 pb-2 md:p-4">
                 <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2 px-2 md:px-0 pt-2 md:pt-0">
                     <span className="w-1 h-3 md:h-4 bg-[#FFD700] rounded"></span>
                     油脂板块价格对比 (豆、棕、菜)
@@ -443,7 +443,7 @@ export function EChartsCrushMargin({
             </div>
 
             {/* 4. Futures Price */}
-            <div className="card p-0 md:p-4">
+            <div className="card p-0 pb-2 md:p-4">
                 <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2 px-2 md:px-0 pt-2 md:pt-0">
                     <span className="w-1 h-3 md:h-4 bg-[#FF8C00] rounded"></span>
                     期货价格走势 (双轴)
@@ -458,7 +458,7 @@ export function EChartsCrushMargin({
             </div>
 
             {/* 5. Position Chart */}
-            <div className="card p-0 md:p-4">
+            <div className="card p-0 pb-2 md:p-4">
                 <h3 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 md:gap-2 px-2 md:px-0 pt-2 md:pt-0">
                     <span className="w-1 h-3 md:h-4 bg-[#FF6B6B] rounded"></span>
                     中粮期货豆油空单持仓走势
