@@ -316,8 +316,8 @@ export function EChartsCrushMargin({
         const series = seriesNames.map(name => ({
             name,
             type: 'line',
-            // stack removed for non-stacked area chart
-            areaStyle: { opacity: 0.3 }, // Added opacity for visibility
+            stack: 'Total',
+            areaStyle: {},
             showSymbol: false,
             // @ts-ignore
             data: positionData.map(d => d[name] || 0),
