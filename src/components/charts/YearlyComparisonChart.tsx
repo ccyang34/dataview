@@ -95,6 +95,7 @@ export function YearlyComparisonChart({
     height = 400,
 }: YearlyComparisonChartProps) {
     const [isMobile, setIsMobile] = useState(false);
+    const [showAll, setShowAll] = useState(false); // 默认显示近6年
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -107,17 +108,26 @@ export function YearlyComparisonChart({
         return <div className="text-center py-20 text-[var(--muted)]">暂无数据</div>;
     }
 
-    const { chartData, years } = transformDataForChart(data);
+    // 获取所有年份
+    const allYears = [...new Set(data.map(d => getYear(d.date)))].sort((a, b) => b - a);
 
-    // 计算数据统计
-    const allValues = data.map(d => d.value);
+    // 根据 showAll 状态筛选年份（默认近6年）
+    const displayYears = showAll ? allYears : allYears.slice(0, 6);
+
+    // 筛选数据
+    const filteredData = showAll ? data : data.filter(d => displayYears.includes(getYear(d.date)));
+
+    const { chartData, years } = transformDataForChart(filteredData);
+
+    // 计算数据统计（基于筛选后的数据）
+    const allValues = filteredData.map(d => d.value);
     const maxValue = Math.max(...allValues);
     const minValue = Math.min(...allValues);
     const avgValue = allValues.reduce((a, b) => a + b, 0) / allValues.length;
 
     // 计算每年的最新值
     const latestByYear: Record<number, { date: string; value: number }> = {};
-    data.forEach(item => {
+    filteredData.forEach(item => {
         const year = getYear(item.date);
         if (!latestByYear[year] || item.date > latestByYear[year].date) {
             latestByYear[year] = { date: item.date, value: item.value };
@@ -128,11 +138,23 @@ export function YearlyComparisonChart({
         <div className="space-y-4">
             {/* 标题和统计信息 */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                <div>
-                    <h3 className="text-lg font-semibold">{title}</h3>
-                    <p className="text-xs text-[var(--muted)]">
-                        共 {years.length} 个年份 | {data.length} 条数据
-                    </p>
+                <div className="flex items-center gap-3">
+                    <div>
+                        <h3 className="text-lg font-semibold">{title}</h3>
+                        <p className="text-xs text-[var(--muted)]">
+                            显示 {years.length} / {allYears.length} 个年份 | {filteredData.length} 条数据
+                        </p>
+                    </div>
+                    {/* 切换按钮 */}
+                    <button
+                        onClick={() => setShowAll(!showAll)}
+                        className={`px-3 py-1 text-xs rounded-md border transition-colors cursor-pointer ${showAll
+                                ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
+                                : 'bg-[var(--card)] text-[var(--muted)] border-[var(--border)] hover:border-[var(--primary)]'
+                            }`}
+                    >
+                        {showAll ? '显示近6年' : '显示全部'}
+                    </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {years.slice(0, 4).map(year => (
