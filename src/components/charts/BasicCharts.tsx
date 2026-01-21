@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
     LineChart as RechartsLineChart,
     Line,
@@ -27,6 +28,18 @@ const COLORS = [
     "var(--chart-5)",
 ];
 
+// 移动端检测 hook
+function useIsMobile() {
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth < 768);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
+    return isMobile;
+}
+
 interface DataPoint {
     name: string;
     value: number;
@@ -51,6 +64,7 @@ export function LineChart({
     showGrid = true,
     showLegend = false,
 }: ChartProps) {
+    const isMobile = useIsMobile();
     return (
         <ResponsiveContainer width="100%" height={height}>
             <RechartsLineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -68,6 +82,7 @@ export function LineChart({
                     axisLine={false}
                 />
                 <Tooltip
+                    trigger={isMobile ? 'click' : 'hover'}
                     contentStyle={{
                         background: "var(--card)",
                         border: "1px solid var(--border)",
@@ -97,6 +112,7 @@ export function AreaChartComponent({
     height = 300,
     showGrid = true,
 }: ChartProps) {
+    const isMobile = useIsMobile();
     return (
         <ResponsiveContainer width="100%" height={height}>
             <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -114,6 +130,7 @@ export function AreaChartComponent({
                     axisLine={false}
                 />
                 <Tooltip
+                    trigger={isMobile ? 'click' : 'hover'}
                     contentStyle={{
                         background: "var(--card)",
                         border: "1px solid var(--border)",
@@ -146,6 +163,7 @@ export function BarChartComponent({
     height = 300,
     showGrid = true,
 }: ChartProps) {
+    const isMobile = useIsMobile();
     return (
         <ResponsiveContainer width="100%" height={height}>
             <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -163,6 +181,7 @@ export function BarChartComponent({
                     axisLine={false}
                 />
                 <Tooltip
+                    trigger={isMobile ? 'click' : 'hover'}
                     contentStyle={{
                         background: "var(--card)",
                         border: "1px solid var(--border)",
@@ -194,6 +213,7 @@ export function PieChartComponent({
     innerRadius = 0,
     showLabel = true,
 }: PieChartProps) {
+    const isMobile = useIsMobile();
     return (
         <ResponsiveContainer width="100%" height={height}>
             <PieChart>
@@ -213,6 +233,7 @@ export function PieChartComponent({
                     ))}
                 </Pie>
                 <Tooltip
+                    trigger={isMobile ? 'click' : 'hover'}
                     contentStyle={{
                         background: "var(--card)",
                         border: "1px solid var(--border)",
@@ -228,3 +249,4 @@ export function PieChartComponent({
 export function DonutChart(props: PieChartProps) {
     return <PieChartComponent {...props} innerRadius={50} />;
 }
+
