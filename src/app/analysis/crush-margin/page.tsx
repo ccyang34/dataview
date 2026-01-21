@@ -187,6 +187,21 @@ export default function AnalysisPage() {
                         />
                     </div>
                 )}
+
+                {/* 豆油基差年度复合折线图 - ECharts */}
+                {!loading && !error && rawData.length > 0 && (
+                    <div className="mt-8">
+                        <EChartsYearly
+                            data={rawData.map(d => ({
+                                date: d.date,
+                                value: d.soybeanOilBasis
+                            }))}
+                            title="豆油基差年度复合对比"
+                            valueLabel="基差"
+                            height={360}
+                        />
+                    </div>
+                )}
             </main>
         </div>
     );
