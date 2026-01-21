@@ -174,7 +174,7 @@ export function EChartsYearly({
                 left: isMobile ? '0%' : '5%',
                 right: isMobile ? '2%' : '5%',
                 top: isMobile ? 65 : 40, // Increased top margin for multi-line legend
-                bottom: isMobile ? '15%' : '8%',
+                bottom: isMobile ? 25 : '8%',
                 containLabel: true
             },
             xAxis: {
@@ -263,7 +263,7 @@ export function EChartsYearly({
             </div>
 
             <div className="card p-0 pb-2 md:p-4">
-                <div style={{ height: isMobile ? 280 : height }}>
+                <div style={{ height: isMobile ? 320 : height }} className="mb-6">
                     <ReactECharts
                         option={getOption()}
                         style={{ height: '100%', width: '100%' }}
