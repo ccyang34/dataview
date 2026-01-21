@@ -12,7 +12,7 @@
   --secondary: #10B981;
   --accent: #F59E0B;
   --danger: #EF4444;
-  
+
   /* 背景与前景 */
   --background: #FAFBFC;
   --foreground: #0F172A;
@@ -21,7 +21,7 @@
   --border: #E2E8F0;
   --muted: #64748B;
   --muted-foreground: #94A3B8;
-  
+
   /* 图表色彩 */
   --chart-1: #3B82F6;
   --chart-2: #10B981;
@@ -30,7 +30,7 @@
   --chart-5: #EC4899;
   --chart-up: #10B981;
   --chart-down: #EF4444;
-  
+
   /* 间距与圆角 */
   --radius: 0.5rem;
   --radius-lg: 0.75rem;
@@ -45,7 +45,7 @@
     --secondary: #34D399;
     --accent: #FBBF24;
     --danger: #F87171;
-    
+
     --background: #0F172A;
     --foreground: #F1F5F9;
     --card: #1E293B;
@@ -53,7 +53,7 @@
     --border: #334155;
     --muted: #94A3B8;
     --muted-foreground: #64748B;
-    
+
     --chart-1: #60A5FA;
     --chart-2: #34D399;
     --chart-3: #FBBF24;
@@ -62,13 +62,14 @@
   }
 }
 
-.dark, [data-theme="dark"] {
+.dark,
+[data-theme="dark"] {
   --primary: #60A5FA;
   --primary-hover: #3B82F6;
   --secondary: #34D399;
   --accent: #FBBF24;
   --danger: #F87171;
-  
+
   --background: #0F172A;
   --foreground: #F1F5F9;
   --card: #1E293B;
@@ -76,7 +77,7 @@
   --border: #334155;
   --muted: #94A3B8;
   --muted-foreground: #64748B;
-  
+
   --chart-1: #60A5FA;
   --chart-2: #34D399;
   --chart-3: #FBBF24;
@@ -104,15 +105,27 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   line-height: 1.6;
-  -webkit-tap-highlight-color: transparent; /* 禁用移动端触控高亮 */
 }
 
-/* 图表交互元素禁用触控高亮 */
+/* 全局禁用移动端触控高亮 */
+*,
+*::before,
+*::after {
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none;
+}
+
+/* 图表容器额外处理 */
+.card,
 .recharts-wrapper,
 .recharts-legend-wrapper,
 .recharts-surface,
-svg {
-  -webkit-tap-highlight-color: transparent;
+svg,
+.recharts-responsive-container {
+  -webkit-tap-highlight-color: transparent !important;
+  outline: none !important;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* 滚动条 */
@@ -248,8 +261,13 @@ svg {
 
 /* 动画 */
 @keyframes marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
 .animate-marquee-fast {
@@ -281,6 +299,7 @@ svg {
 
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -292,11 +311,13 @@ svg {
 
 /* Hide scrollbar for Chrome, Safari and Opera */
 .no-scrollbar::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 
 /* Hide scrollbar for IE, Edge and Firefox */
 .no-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
