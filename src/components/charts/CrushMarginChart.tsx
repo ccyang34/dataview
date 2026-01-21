@@ -100,6 +100,68 @@ export function CrushMarginDashboard({
 }: FullDashboardProps) {
     const [isMobile, setIsMobile] = useState(false);
 
+    // 各图表的隐藏系列状态
+    const [hiddenMargin, setHiddenMargin] = useState<Set<string>>(new Set());
+    const [hiddenBasis, setHiddenBasis] = useState<Set<string>>(new Set());
+    const [hiddenOil, setHiddenOil] = useState<Set<string>>(new Set());
+    const [hiddenPrice, setHiddenPrice] = useState<Set<string>>(new Set());
+    const [hiddenPosition, setHiddenPosition] = useState<Set<string>>(new Set());
+
+    // 通用图例点击处理
+    const createLegendHandler = (setter: React.Dispatch<React.SetStateAction<Set<string>>>) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (entry: any) => {
+            const key = entry?.dataKey || entry?.value;
+            if (!key) return;
+            setter(prev => {
+                const newSet = new Set(prev);
+                if (newSet.has(key)) {
+                    newSet.delete(key);
+                } else {
+                    newSet.add(key);
+                }
+                return newSet;
+            });
+        };
+    };
+
+    // 可复用的交互式图例渲染
+    const renderInteractiveLegend = (
+        hidden: Set<string>,
+        handler: (entry: { dataKey?: string; value?: string }) => void,
+        colorMap: Record<string, string>
+    ) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return ({ payload }: any) => (
+            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 px-2 text-[10px]">
+                {payload?.map((entry: { value: string; color: string; dataKey?: string }, index: number) => {
+                    const key = entry.dataKey || entry.value;
+                    const isHidden = hidden.has(key);
+                    const color = colorMap[key] || entry.color;
+                    return (
+                        <span
+                            key={`legend-${index}`}
+                            onClick={() => handler({ dataKey: key, value: entry.value })}
+                            className="flex items-center gap-1 cursor-pointer transition-opacity hover:opacity-80"
+                            style={{ opacity: isHidden ? 0.4 : 1 }}
+                        >
+                            <span
+                                className="inline-block w-3 h-0.5 rounded"
+                                style={{ backgroundColor: isHidden ? '#ccc' : color }}
+                            />
+                            <span style={{
+                                color: isHidden ? '#999' : 'var(--foreground)',
+                                textDecoration: isHidden ? 'line-through' : 'none'
+                            }}>
+                                {entry.value}
+                            </span>
+                        </span>
+                    );
+                })}
+            </div>
+        );
+    };
+
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
         checkMobile();
@@ -162,11 +224,11 @@ export function CrushMarginDashboard({
                                     return [`${Number(value).toFixed(0)}`, String(name)];
                                 }}
                             />
-                            <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
+                            <Legend verticalAlign="top" height={28} wrapperStyle={{ cursor: 'pointer' }} content={renderInteractiveLegend(hiddenMargin, createLegendHandler(setHiddenMargin), { futuresMargin: COLORS.futuresMargin, grossMargin: COLORS.grossMargin, soybeanOilPrice: COLORS.oilOverlay })} />
                             <ReferenceLine y={0} yAxisId="left" stroke={COLORS.breakeven} strokeWidth={1.5} />
-                            <Area yAxisId="left" type="monotone" dataKey="futuresMargin" name="盘面榨利" fill="url(#colorFuturesMargin)" stroke={COLORS.futuresMargin} strokeWidth={1} />
-                            <Line yAxisId="left" type="monotone" dataKey="grossMargin" name="现货榨利" stroke={COLORS.grossMargin} strokeWidth={2} dot={false} />
-                            <Line yAxisId="right" type="monotone" dataKey="soybeanOilPrice" name="豆油(右)" stroke={COLORS.oilOverlay} strokeDasharray="5 5" strokeWidth={1} dot={false} opacity={0.7} />
+                            <Area yAxisId="left" type="monotone" dataKey="futuresMargin" name="盘面榨利" fill="url(#colorFuturesMargin)" stroke={COLORS.futuresMargin} strokeWidth={1} hide={hiddenMargin.has('futuresMargin')} />
+                            <Line yAxisId="left" type="monotone" dataKey="grossMargin" name="现货榨利" stroke={COLORS.grossMargin} strokeWidth={2} dot={false} hide={hiddenMargin.has('grossMargin')} />
+                            <Line yAxisId="right" type="monotone" dataKey="soybeanOilPrice" name="豆油(右)" stroke={COLORS.oilOverlay} strokeDasharray="5 5" strokeWidth={1} dot={false} opacity={hiddenMargin.has('soybeanOilPrice') ? 0 : 0.7} hide={hiddenMargin.has('soybeanOilPrice')} />
                         </ComposedChart>
                     </ResponsiveContainer>
                 </div>
@@ -197,12 +259,12 @@ export function CrushMarginDashboard({
                                     return [`${Number(value).toFixed(0)}`, String(name)];
                                 }}
                             />
-                            <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
+                            <Legend verticalAlign="top" height={28} wrapperStyle={{ cursor: 'pointer' }} content={renderInteractiveLegend(hiddenBasis, createLegendHandler(setHiddenBasis), { soybeanOilBasis: COLORS.oilBasis, soybeanMealBasis: COLORS.mealBasis, spotOilMealRatio: COLORS.oilMealRatio, oilBasisRate: COLORS.basisRate })} />
                             <ReferenceLine y={0} stroke="gray" strokeDasharray="3 3" yAxisId="left" opacity={0.5} />
-                            <Line yAxisId="left" type="monotone" dataKey="soybeanOilBasis" name="豆油基差" stroke={COLORS.oilBasis} strokeDasharray="5 5" dot={false} strokeWidth={1.5} />
-                            <Line yAxisId="left" type="monotone" dataKey="soybeanMealBasis" name="豆粕基差" stroke={COLORS.mealBasis} strokeDasharray="5 5" dot={false} strokeWidth={1.5} />
-                            <Area yAxisId="right" type="monotone" dataKey="spotOilMealRatio" name="油粕比" fill={COLORS.oilMealRatio} fillOpacity={0.2} stroke={COLORS.oilMealRatio} strokeWidth={1} />
-                            <Line yAxisId="right" type="monotone" dataKey="oilBasisRate" name="基差率%" stroke={COLORS.basisRate} strokeWidth={1.5} dot={false} />
+                            <Line yAxisId="left" type="monotone" dataKey="soybeanOilBasis" name="豆油基差" stroke={COLORS.oilBasis} strokeDasharray="5 5" dot={false} strokeWidth={1.5} hide={hiddenBasis.has('soybeanOilBasis')} />
+                            <Line yAxisId="left" type="monotone" dataKey="soybeanMealBasis" name="豆粕基差" stroke={COLORS.mealBasis} strokeDasharray="5 5" dot={false} strokeWidth={1.5} hide={hiddenBasis.has('soybeanMealBasis')} />
+                            <Area yAxisId="right" type="monotone" dataKey="spotOilMealRatio" name="油粕比" fill={COLORS.oilMealRatio} fillOpacity={hiddenBasis.has('spotOilMealRatio') ? 0 : 0.2} stroke={COLORS.oilMealRatio} strokeWidth={1} hide={hiddenBasis.has('spotOilMealRatio')} />
+                            <Line yAxisId="right" type="monotone" dataKey="oilBasisRate" name="基差率%" stroke={COLORS.basisRate} strokeWidth={1.5} dot={false} hide={hiddenBasis.has('oilBasisRate')} />
                         </ComposedChart>
                     </ResponsiveContainer>
                 </div>
@@ -225,10 +287,10 @@ export function CrushMarginDashboard({
                                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                     formatter={(value, name) => [`${Number(value).toFixed(0)}`, String(name)]}
                                 />
-                                <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
-                                <Line type="monotone" dataKey="soybeanOil" name="豆油(Y)" stroke={COLORS.soybeanOil} dot={false} strokeWidth={2} />
-                                <Line type="monotone" dataKey="palmOil" name="棕榄油(P)" stroke={COLORS.palm} dot={false} strokeWidth={1.5} />
-                                <Line type="monotone" dataKey="rapeseedOil" name="菜油(OI)" stroke={COLORS.rapeseed} dot={false} strokeWidth={1.5} />
+                                <Legend verticalAlign="top" height={28} wrapperStyle={{ cursor: 'pointer' }} content={renderInteractiveLegend(hiddenOil, createLegendHandler(setHiddenOil), { soybeanOil: COLORS.soybeanOil, palmOil: COLORS.palm, rapeseedOil: COLORS.rapeseed })} />
+                                <Line type="monotone" dataKey="soybeanOil" name="豆油(Y)" stroke={COLORS.soybeanOil} dot={false} strokeWidth={2} hide={hiddenOil.has('soybeanOil')} />
+                                <Line type="monotone" dataKey="palmOil" name="棕榄油(P)" stroke={COLORS.palm} dot={false} strokeWidth={1.5} hide={hiddenOil.has('palmOil')} />
+                                <Line type="monotone" dataKey="rapeseedOil" name="菜油(OI)" stroke={COLORS.rapeseed} dot={false} strokeWidth={1.5} hide={hiddenOil.has('rapeseedOil')} />
                             </LineChart>
                         ) : (
                             <div className="flex items-center justify-center h-full text-[var(--muted)] text-sm">暂无油脂对比数据</div>
@@ -254,10 +316,10 @@ export function CrushMarginDashboard({
                                 contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                 formatter={(value, name) => [`${Number(value).toFixed(0)}`, String(name)]}
                             />
-                            <Legend verticalAlign="top" height={28} iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
-                            <Line yAxisId="left" type="monotone" dataKey="soybeanOilPrice" name="豆油" stroke={COLORS.soybeanOil} dot={false} strokeWidth={1.5} />
-                            <Line yAxisId="right" type="monotone" dataKey="soybeanMealPrice" name="豆粕" stroke={COLORS.soybeanMeal} dot={false} strokeWidth={1.5} />
-                            <Line yAxisId="right" type="monotone" dataKey="soybeanNo2Price" name="豆二" stroke={COLORS.soybeanNo2} strokeDasharray="5 5" dot={false} strokeWidth={1.5} />
+                            <Legend verticalAlign="top" height={28} wrapperStyle={{ cursor: 'pointer' }} content={renderInteractiveLegend(hiddenPrice, createLegendHandler(setHiddenPrice), { soybeanOilPrice: COLORS.soybeanOil, soybeanMealPrice: COLORS.soybeanMeal, soybeanNo2Price: COLORS.soybeanNo2 })} />
+                            <Line yAxisId="left" type="monotone" dataKey="soybeanOilPrice" name="豆油" stroke={COLORS.soybeanOil} dot={false} strokeWidth={1.5} hide={hiddenPrice.has('soybeanOilPrice')} />
+                            <Line yAxisId="right" type="monotone" dataKey="soybeanMealPrice" name="豆粕" stroke={COLORS.soybeanMeal} dot={false} strokeWidth={1.5} hide={hiddenPrice.has('soybeanMealPrice')} />
+                            <Line yAxisId="right" type="monotone" dataKey="soybeanNo2Price" name="豆二" stroke={COLORS.soybeanNo2} strokeDasharray="5 5" dot={false} strokeWidth={1.5} hide={hiddenPrice.has('soybeanNo2Price')} />
                         </ComposedChart>
                     </ResponsiveContainer>
                 </div>
@@ -302,13 +364,13 @@ export function CrushMarginDashboard({
                                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                     formatter={(value, name) => [`${Number(value).toLocaleString()} 手`, String(name)]}
                                 />
-                                <Legend verticalAlign="top" height={24} iconSize={8} wrapperStyle={{ fontSize: '10px' }} />
+                                <Legend verticalAlign="top" height={24} wrapperStyle={{ cursor: 'pointer' }} content={renderInteractiveLegend(hiddenPosition, createLegendHandler(setHiddenPosition), { Y2505: COLORS.Y2505, Y2509: COLORS.Y2509, Y2601: COLORS.Y2601, Y2605: COLORS.Y2605, Y2609: COLORS.Y2609 })} />
 
-                                <Area type="monotone" dataKey="Y2505" name="Y2505" stroke={COLORS.Y2505} fill="url(#colorY2505)" strokeWidth={1.5} />
-                                <Area type="monotone" dataKey="Y2509" name="Y2509" stroke={COLORS.Y2509} fill="url(#colorY2509)" strokeWidth={1.5} />
-                                <Area type="monotone" dataKey="Y2601" name="Y2601" stroke={COLORS.Y2601} fill="url(#colorY2601)" strokeWidth={1.5} />
-                                <Area type="monotone" dataKey="Y2605" name="Y2605" stroke={COLORS.Y2605} fill="url(#colorY2605)" strokeWidth={1.5} />
-                                <Area type="monotone" dataKey="Y2609" name="Y2609" stroke={COLORS.Y2609} fill="url(#colorY2609)" strokeWidth={1.5} />
+                                <Area type="monotone" dataKey="Y2505" name="Y2505" stroke={COLORS.Y2505} fill="url(#colorY2505)" strokeWidth={1.5} hide={hiddenPosition.has('Y2505')} />
+                                <Area type="monotone" dataKey="Y2509" name="Y2509" stroke={COLORS.Y2509} fill="url(#colorY2509)" strokeWidth={1.5} hide={hiddenPosition.has('Y2509')} />
+                                <Area type="monotone" dataKey="Y2601" name="Y2601" stroke={COLORS.Y2601} fill="url(#colorY2601)" strokeWidth={1.5} hide={hiddenPosition.has('Y2601')} />
+                                <Area type="monotone" dataKey="Y2605" name="Y2605" stroke={COLORS.Y2605} fill="url(#colorY2605)" strokeWidth={1.5} hide={hiddenPosition.has('Y2605')} />
+                                <Area type="monotone" dataKey="Y2609" name="Y2609" stroke={COLORS.Y2609} fill="url(#colorY2609)" strokeWidth={1.5} hide={hiddenPosition.has('Y2609')} />
                             </AreaChart>
                         ) : (
                             <div className="flex items-center justify-center h-full text-[var(--muted)]">暂无持仓数据</div>
