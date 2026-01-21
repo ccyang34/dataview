@@ -92,11 +92,7 @@ export default function AnalysisPage() {
 
             <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl font-bold">大豆榨利分析</h1>
-                        <p className="text-[var(--muted)] mt-1">大豆压榨利润与基差分析 - {periodLabel}</p>
-                    </div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4 mb-6">
                     <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto pb-1 sm:pb-0">
                         {/* Time Period Selector */}
                         <div className="flex items-center gap-1 bg-[var(--card)] rounded-lg p-1 border border-[var(--border)] shrink-0">
