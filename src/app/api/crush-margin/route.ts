@@ -128,11 +128,11 @@ async function fetchFromSupabase(): Promise<{
 
         // 并行获取所有数据
         const [oilRes, mealRes, beanRes, oilBasisRes, mealBasisRes] = await Promise.all([
-            supabase.from('futures_price').select('trade_date, close_price').eq('symbol', 'Y0').order('trade_date', { ascending: true }),
-            supabase.from('futures_price').select('trade_date, close_price').eq('symbol', 'M0').order('trade_date', { ascending: true }),
-            supabase.from('futures_price').select('trade_date, close_price').eq('symbol', 'B0').order('trade_date', { ascending: true }),
-            supabase.from('basis_data').select('trade_date, basis').eq('variety', 'Y').order('trade_date', { ascending: true }),
-            supabase.from('basis_data').select('trade_date, basis').eq('variety', 'M').order('trade_date', { ascending: true })
+            supabase.from('futures_price').select('trade_date, close_price').eq('symbol', 'Y0').order('trade_date', { ascending: true }).limit(10000),
+            supabase.from('futures_price').select('trade_date, close_price').eq('symbol', 'M0').order('trade_date', { ascending: true }).limit(10000),
+            supabase.from('futures_price').select('trade_date, close_price').eq('symbol', 'B0').order('trade_date', { ascending: true }).limit(10000),
+            supabase.from('basis_data').select('trade_date, basis').eq('variety', 'Y').order('trade_date', { ascending: true }).limit(10000),
+            supabase.from('basis_data').select('trade_date, basis').eq('variety', 'M').order('trade_date', { ascending: true }).limit(10000)
         ]);
 
         // 检查是否有数据
