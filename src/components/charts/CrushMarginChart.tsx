@@ -218,6 +218,7 @@ export function CrushMarginDashboard({
                             <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
                             <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilOverlay} fontSize={8} width={32} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} domain={['auto', 'auto']} />
                             <Tooltip
+                                trigger={isMobile ? 'click' : 'hover'}
                                 contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                 formatter={(value, name) => {
                                     if (name === '豆油(右)') return [`${Number(value).toFixed(0)}`, String(name)];
@@ -253,6 +254,7 @@ export function CrushMarginDashboard({
                             <YAxis yAxisId="left" stroke="var(--muted)" fontSize={8} width={32} domain={['auto', 'auto']} />
                             <YAxis yAxisId="right" orientation="right" stroke={COLORS.oilMealRatio} fontSize={8} width={24} domain={['auto', 'auto']} />
                             <Tooltip
+                                trigger={isMobile ? 'click' : 'hover'}
                                 contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                 formatter={(value, name) => {
                                     if (name === '油粕比' || name === '基差率%') return [`${Number(value).toFixed(2)}`, String(name)];
@@ -284,6 +286,7 @@ export function CrushMarginDashboard({
                                 <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(oilData?.length || 0)} minTickGap={isMobile ? 50 : 30} />
                                 <YAxis stroke="var(--muted)" fontSize={8} domain={['auto', 'auto']} width={32} />
                                 <Tooltip
+                                    trigger={isMobile ? 'click' : 'hover'}
                                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                     formatter={(value, name) => [`${Number(value).toFixed(0)}`, String(name)]}
                                 />
@@ -313,6 +316,7 @@ export function CrushMarginDashboard({
                             <YAxis yAxisId="left" stroke={COLORS.soybeanOil} fontSize={8} domain={['auto', 'auto']} width={32} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                             <YAxis yAxisId="right" orientation="right" stroke={COLORS.soybeanMeal} fontSize={8} domain={['auto', 'auto']} width={28} />
                             <Tooltip
+                                trigger={isMobile ? 'click' : 'hover'}
                                 contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                 formatter={(value, name) => [`${Number(value).toFixed(0)}`, String(name)]}
                             />
@@ -361,6 +365,7 @@ export function CrushMarginDashboard({
                                 <XAxis dataKey="date" stroke="var(--muted)" fontSize={9} tickFormatter={formatDateLabel} interval={getInterval(positionData?.length || 0)} minTickGap={isMobile ? 50 : 30} />
                                 <YAxis stroke="var(--muted)" fontSize={8} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} width={28} domain={['auto', 'auto']} />
                                 <Tooltip
+                                    trigger={isMobile ? 'click' : 'hover'}
                                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: 11, padding: "4px 8px" }}
                                     formatter={(value, name) => [`${Number(value).toLocaleString()} 手`, String(name)]}
                                 />

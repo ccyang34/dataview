@@ -225,6 +225,7 @@ export function YearlyComparisonChart({
                                 tickFormatter={(v) => v.toFixed(0)}
                             />
                             <Tooltip
+                                trigger={isMobile ? 'click' : 'hover'}
                                 contentStyle={{
                                     background: "var(--card)",
                                     border: "1px solid var(--border)",
