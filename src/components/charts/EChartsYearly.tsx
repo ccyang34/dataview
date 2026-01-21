@@ -174,7 +174,7 @@ export function EChartsYearly({
                 left: isMobile ? '0%' : '5%',
                 right: isMobile ? '2%' : '5%',
                 top: isMobile ? 65 : 40, // Increased top margin for multi-line legend
-                bottom: isMobile ? '8%' : '3%',
+                bottom: isMobile ? '15%' : '8%',
                 containLabel: true
             },
             xAxis: {
