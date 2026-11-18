@@ -268,10 +268,11 @@ export default function Home() {
           </div>
 
           {/* 2. Quick Actions Grid (Golden Zone) */}
-          <div className="grid grid-cols-5 gap-2 text-center">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
             {[
               { name: '大盘云图', icon: <PieChart className="w-5 h-5 text-blue-500" />, url: 'https://52etf.site/' },
               { name: '压榨利润', icon: <Filter className="w-5 h-5 text-orange-500" />, action: 'crush' },
+              { name: '豆油主力分析', icon: <BarChart3 className="w-5 h-5 text-amber-500" />, url: '/analysis/soybean-oil-y01' },
               { name: '龙虎榜', icon: <Zap className="w-5 h-5 text-red-500" />, action: 'lhb' },
               { name: '宽基对比', icon: <TrendingUp className="w-5 h-5 text-purple-500" />, action: 'comp' },
               { name: '7x24快讯', icon: <Newspaper className="w-5 h-5 text-teal-500" />, action: 'news' },

@@ -49,6 +49,13 @@ export function Navbar({ user }: NavbarProps) {
                         </Link>
 
                         <Link
+                            href="/analysis/soybean-oil-y01"
+                            className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+                        >
+                            豆油主力分析
+                        </Link>
+
+                        <Link
                             href="/embed"
                             className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
                         >
@@ -127,6 +134,13 @@ export function Navbar({ user }: NavbarProps) {
                                 onClick={() => setIsOpen(false)}
                             >
                                 大豆榨利分析
+                            </Link>
+                            <Link
+                                href="/analysis/soybean-oil-y01"
+                                className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
+                                onClick={() => setIsOpen(false)}
+                            >
+                                豆油主力分析
                             </Link>
                             <Link
                                 href="/embed"
