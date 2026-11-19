@@ -61,6 +61,13 @@ export function Navbar({ user }: NavbarProps) {
                         >
                             棕榈油主力分析
                         </Link>
+
+                        <Link
+                            href="/analysis/oil-shape-research"
+                            className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+                        >
+                            油脂形态研究
+                        </Link>
                     </div>
 
                     {/* Right Actions */}
@@ -142,6 +149,13 @@ export function Navbar({ user }: NavbarProps) {
                                 onClick={() => setIsOpen(false)}
                             >
                                 棕榈油主力分析
+                            </Link>
+                            <Link
+                                href="/analysis/oil-shape-research"
+                                className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
+                                onClick={() => setIsOpen(false)}
+                            >
+                                油脂形态研究
                             </Link>
                             <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between">
                                 <button

@@ -1,0 +1,37 @@
+name: Update Oil Shape Research Data
+
+on:
+  schedule:
+    # 交易日北京时间 16:45 (UTC 08:45)，在豆油/棕榈油数据更新(16:30)之后复算形态研究
+    - cron: '45 8 * * 1-5'
+  workflow_dispatch: # 允许手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch live 2705 & rebuild research JSON
+        run: node scripts/update-oil-shape-research.mjs
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/data/oil-shape-research.json
+          if git diff --cached --quiet; then
+            echo "No data changes, skip commit."
+          else
+            git commit -m "chore: update oil shape research + 2705 forecast $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          fi

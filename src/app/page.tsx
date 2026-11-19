@@ -274,6 +274,7 @@ export default function Home() {
               { name: '压榨利润', icon: <Filter className="w-5 h-5 text-orange-500" />, action: 'crush' },
               { name: '豆油主力分析', icon: <BarChart3 className="w-5 h-5 text-amber-500" />, url: '/analysis/soybean-oil-y01' },
               { name: '棕榈油分析', icon: <BarChart3 className="w-5 h-5 text-orange-400" />, url: '/analysis/palm-oil-p01' },
+              { name: '形态研究', icon: <Activity className="w-5 h-5 text-indigo-500" />, url: '/analysis/oil-shape-research' },
               { name: '龙虎榜', icon: <Zap className="w-5 h-5 text-red-500" />, action: 'lhb' },
               { name: '宽基对比', icon: <TrendingUp className="w-5 h-5 text-purple-500" />, action: 'comp' },
               { name: '7x24快讯', icon: <Newspaper className="w-5 h-5 text-teal-500" />, action: 'news' },
