@@ -287,29 +287,40 @@ export function SoybeanOilCharts({ data }: { data: SoybeanOilData }) {
       </div>
 
       {/* 明细表 */}
-      <Card title="④ 各合约关键数据一览" desc="按合约分组列出各年度窗口首末价、区间涨跌、逐日最高涨幅、节点数。进行中的 Y2701 仅 4/6 节点。">
+      <Card title="④ 各合约关键数据一览" desc="按合约分组列出各年度窗口首末价、区间涨跌、逐日最高涨幅、首日到最高点的交易日数、节点数。进行中的 Y2701 仅 4/6 节点。">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-[var(--background)] text-[var(--muted)]">
-                {["合约", "交割年", "窗口起", "首→末价", "窗口涨跌", "最高涨幅", "节点", "覆盖月份"].map((h) => (
-                  <th key={h} className="p-2 font-medium whitespace-nowrap">{h}</th>
+                {[
+                  ["合约", "text-left"],
+                  ["交割年", "text-center"],
+                  ["窗口起", "text-center"],
+                  ["首→末价", "text-center"],
+                  ["窗口涨跌", "text-center"],
+                  ["最高涨幅", "text-center"],
+                  ["首→高点", "text-center"],
+                  ["节点", "text-center"],
+                  ["覆盖月份", "text-left"],
+                ].map(([h, align]) => (
+                  <th key={h} className={`p-2 font-medium whitespace-nowrap ${align}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {CT.map((ct) => (
                 <React.Fragment key={ct}>
-                  <tr><td colSpan={8} className="p-2 text-left font-bold" style={{ color: "var(--primary)", background: "var(--card-hover)" }}>{ct}合约 · 窗口 {types[ct].labels.join(" / ")}</td></tr>
+                  <tr><td colSpan={9} className="p-2 text-left font-bold" style={{ color: "var(--primary)", background: "var(--card-hover)" }}>{ct}合约 · 窗口 {types[ct].labels.join(" / ")}</td></tr>
                   {types[ct].series.map((s) => (
                     <tr key={s.symbol} className="border-t border-[var(--border)] hover:bg-[var(--card-hover)]">
                       <td className="p-2 text-left whitespace-nowrap font-bold">{s.symbol}{s.nodes < 6 && <span style={{ color: RED, fontSize: 10 }}> (进行中)</span>}</td>
-                      <td className="p-2 whitespace-nowrap">{s.deliver_year}</td>
-                      <td className="p-2 whitespace-nowrap">{s.win_start?.slice(0, 7)}</td>
-                      <td className="p-2 whitespace-nowrap">{Math.round(s.abs[0] ?? 0)} → {Math.round(s.abs[s.nodes - 1] ?? 0)}</td>
-                      <td className="p-2 whitespace-nowrap font-semibold" style={{ color: s.win_pct >= 0 ? RED : GREEN }}>{s.win_pct > 0 ? "+" : ""}{s.win_pct.toFixed(1)}%</td>
-                      <td className="p-2 whitespace-nowrap font-semibold" style={{ color: RED }}>+{s.peak_pct.toFixed(1)}%</td>
-                      <td className="p-2 whitespace-nowrap">{s.nodes}/6</td>
+                      <td className="p-2 text-center whitespace-nowrap">{s.deliver_year}</td>
+                      <td className="p-2 text-center whitespace-nowrap">{s.win_start?.slice(0, 7)}</td>
+                      <td className="p-2 text-center whitespace-nowrap">{Math.round(s.abs[0] ?? 0)} → {Math.round(s.abs[s.nodes - 1] ?? 0)}</td>
+                      <td className="p-2 text-center whitespace-nowrap font-semibold" style={{ color: s.win_pct >= 0 ? RED : GREEN }}>{s.win_pct > 0 ? "+" : ""}{s.win_pct.toFixed(1)}%</td>
+                      <td className="p-2 text-center whitespace-nowrap font-semibold" style={{ color: RED }}>+{s.peak_pct.toFixed(1)}%</td>
+                      <td className="p-2 text-center whitespace-nowrap">{s.peak_days}日</td>
+                      <td className="p-2 text-center whitespace-nowrap">{s.nodes}/6</td>
                       <td className="p-2 text-left whitespace-nowrap text-[var(--muted)]">{types[ct].labels.slice(0, s.nodes).join(" / ")}</td>
                     </tr>
                   ))}
@@ -326,7 +337,7 @@ export function SoybeanOilCharts({ data }: { data: SoybeanOilData }) {
           <p>1. <b>标的：</b>豆油期货（Y）于 2006 年在大商所上市，01/05/09 为主力月份合约。</p>
           <p>2. <b>窗口区间：</b>每合约只取临近交割的核心主力窗口——01=8月~次年1月、05=12月~次年5月、09=4月~9月（各6个月）。</p>
           <p>3. <b>对齐口径：</b>图①颗粒度=天，按日历月-日对齐到统一轴（各年约110个交易日）；图②颗粒度=天，各合约按窗口进度（第1~N交易日）线性插值到统一 121 点轴后等权平均，末点与月末口径一致；图③按逐日真实起止交易日；图④明细表按自然月月末收盘6节点口径。图①②归一化基准为窗口首月末收盘=100。</p>
-          <p>4. <b>两种涨跌口径：</b>图③「窗口涨跌」=窗口最后交易日收盘 / 起始交易日收盘 −1（逐日口径）；图③-2「最高涨幅」=窗口内最高价日 high / 起始交易日收盘 −1（逐日口径，分母同为起始交易日收盘）。</p>
+          <p>4. <b>两种涨跌口径：</b>图③「窗口涨跌」=窗口最后交易日收盘 / 起始交易日收盘 −1（逐日口径）；图③-2「最高涨幅」=窗口内最高价日 high / 起始交易日收盘 −1（逐日口径，分母同为起始交易日收盘）。表④「首→高点」=从窗口起始交易日到最高价日所经历的交易日数（起始日即最高则记 0 日）。</p>
           <p>5. <b>数据边界：</b>新浪源约回溯至 2019 年，各合约样本 7–8 个年度；Y2705/Y2709 未进窗口未纳入。</p>
           <p>6. <b>更新机制：</b>数据由 GitHub Action 每交易日 16:30（北京时间）自动拉取新浪日线重算并提交，页面“刷新”即读最新；本报告为历史统计，不构成投资建议。</p>
         </div>

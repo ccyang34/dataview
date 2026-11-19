@@ -126,7 +126,9 @@ async function main() {
       const start = winDaily[0];
       const end = winDaily[winDaily.length - 1];
       let peak = winDaily[0];
-      for (const r of winDaily) if (r.h > peak.h) peak = r;
+      let peakIdx = 0;
+      winDaily.forEach((r, i) => { if (r.h > peak.h) { peak = r; peakIdx = i; } });
+      const peakDays = peakIdx; // 起始交易日 → 最高价日 的交易日间隔数
 
       series.push({
         symbol: sym,
@@ -139,6 +141,7 @@ async function main() {
         win_pct: round((win.get(lastI).c / base - 1) * 100, 2),
         win_daily_pct: round((end.c / start.c - 1) * 100, 2),
         peak_pct: round((peak.h / start.c - 1) * 100, 2),
+        peak_days: peakDays,
         start_date: start.d,
         start_price: round(start.c, 0),
         end_date: end.d,

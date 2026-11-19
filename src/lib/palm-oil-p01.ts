@@ -14,6 +14,7 @@ export interface ContractSeries {
   /** 起始交易日收盘 → 窗口最后交易日收盘 涨跌幅（逐日口径，图③） */
   win_daily_pct: number;
   peak_pct: number;
+  peak_days: number;
   start_date: string;
   start_price: number;
   end_date: string;
