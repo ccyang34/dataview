@@ -162,7 +162,7 @@ export function SoybeanOilCharts({ data }: { data: SoybeanOilData }) {
   const barColor = [COLORS[0], COLORS[1], RED];
   const barLegend = ["01合约", "05合约", "09合约"];
 
-  const buildBarOption = (field: "win_pct" | "peak_pct", name: string, peakMode: boolean) => {
+  const buildBarOption = (field: "win_pct" | "win_daily_pct" | "peak_pct", name: string, peakMode: boolean) => {
     const series = CT.map((ct, idx) => {
       const mp = new Map(types[ct].series.map((s) => [s.deliver_year, s]));
       return {
@@ -177,6 +177,7 @@ export function SoybeanOilCharts({ data }: { data: SoybeanOilData }) {
             itemStyle: { color },
             symbol: s.symbol,
             startDate: s.start_date, startPrice: s.start_price,
+            endDate: s.end_date, endPrice: s.end_price,
             peakDate: s.peak_date, peakPrice: s.peak_price, winPct: s.win_pct,
           };
         }),
@@ -191,12 +192,15 @@ export function SoybeanOilCharts({ data }: { data: SoybeanOilData }) {
           if (!ps.length) return "";
           let html = `<div style="font-weight:600;margin-bottom:3px">交割年 20${ps[0].axisValue}</div>`;
           ps.forEach((p) => {
-            const v = p.value;
-            if (!v || v.value == null) return;
+            // ECharts axis trigger: p.value 为数值, 自定义字段在 p.data 上
+            const d = p.data && typeof p.data === "object" ? p.data : p.value;
+            const val = d && d.value != null ? d.value : (typeof p.value === "number" ? p.value : null);
+            if (val == null || !d || !d.symbol) return;
+            const vtxt = val.toFixed(1);
             if (peakMode) {
-              html += `<div>${p.marker}${p.seriesName} ${v.symbol}: <b>${v.value.toFixed(1)}%</b><br/><span style="opacity:.7;font-size:11px">${v.startDate.slice(5)} 收 ${Math.round(v.startPrice)} → ${v.peakDate.slice(5)} 高 ${Math.round(v.peakPrice)}；末 ${v.winPct.toFixed(1)}%</span></div>`;
+              html += `<div>${p.marker}${p.seriesName} ${d.symbol}: <b>${vtxt}%</b><br/><span style="opacity:.7;font-size:11px">${d.startDate.slice(5)} 收 ${Math.round(d.startPrice)} → ${d.peakDate.slice(5)} 高 ${Math.round(d.peakPrice)}；末 ${d.winPct.toFixed(1)}%</span></div>`;
             } else {
-              html += `<div>${p.marker}${p.seriesName} ${v.symbol}: <b style="color:${v.value >= 0 ? RED : GREEN}">${v.value.toFixed(1)}%</b></div>`;
+              html += `<div>${p.marker}${p.seriesName} ${d.symbol}: <b style="color:${val >= 0 ? RED : GREEN}">${vtxt}%</b><br/><span style="opacity:.7;font-size:11px">${d.startDate.slice(5)} 收 ${Math.round(d.startPrice)} → ${d.endDate.slice(5)} 收 ${Math.round(d.endPrice)}</span></div>`;
             }
           });
           return html;
@@ -209,7 +213,7 @@ export function SoybeanOilCharts({ data }: { data: SoybeanOilData }) {
       series,
     };
   };
-  const opt3 = useMemo(() => buildBarOption("win_pct", "窗口%", false), [types, t]);
+  const opt3 = useMemo(() => buildBarOption("win_daily_pct", "起→末%", false), [types, t]);
   const opt32 = useMemo(() => buildBarOption("peak_pct", "最高%", true), [types, t]);
 
   return (
@@ -267,7 +271,7 @@ export function SoybeanOilCharts({ data }: { data: SoybeanOilData }) {
 
       {/* 图③ + ③-2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="③ 各交割年三合约窗口涨跌幅（起始→末）" desc="按交割年分组，同月三合约「起始月末→窗口末月末」涨跌并列对比（红涨绿跌）。">
+        <Card title="③ 各交割年三合约窗口涨跌幅（起始→末）" desc="按交割年分组，同月三合约「窗口起始交易日收盘→最后交易日收盘」涨跌并列对比（红涨绿跌）。悬停看真实起止日期与价格。">
           <ReactECharts option={opt3} style={{ height: 330, width: "100%" }} notMerge={true} opts={{ renderer: "svg" }} />
         </Card>
         <Card title="③-2 起始日→最高价日涨幅（逐日）" desc="逐日真实行情：起始交易日收盘 → 窗口内最高价日日内最高价（high）的涨幅，衡量区间最大上行空间。峰值即起始日显示灰柱。悬停看具体日期。">
@@ -314,8 +318,8 @@ export function SoybeanOilCharts({ data }: { data: SoybeanOilData }) {
         <div className="text-xs text-[var(--muted)] space-y-1.5 leading-relaxed">
           <p>1. <b>标的：</b>豆油期货（Y）于 2006 年在大商所上市，01/05/09 为主力月份合约。</p>
           <p>2. <b>窗口区间：</b>每合约只取临近交割的核心主力窗口——01=8月~次年1月、05=12月~次年5月、09=4月~9月（各6个月）。</p>
-          <p>3. <b>对齐口径：</b>图①颗粒度=天，按日历月-日对齐到统一轴（各年约110个交易日）；图②颗粒度=天，各合约按窗口进度（第1~N交易日）线性插值到统一 121 点轴后等权平均，末点与月末口径一致；图③④按自然月月末收盘6节点口径。三图归一化基准均为窗口首月末收盘=100。</p>
-          <p>4. <b>两种涨跌口径：</b>图③「窗口涨跌」=末月末/首月末−1（月末口径）；图③-2「最高涨幅」=窗口内最高价日 high / 起始交易日收盘 −1（逐日口径，基准不同）。</p>
+          <p>3. <b>对齐口径：</b>图①颗粒度=天，按日历月-日对齐到统一轴（各年约110个交易日）；图②颗粒度=天，各合约按窗口进度（第1~N交易日）线性插值到统一 121 点轴后等权平均，末点与月末口径一致；图③按逐日真实起止交易日；图④明细表按自然月月末收盘6节点口径。图①②归一化基准为窗口首月末收盘=100。</p>
+          <p>4. <b>两种涨跌口径：</b>图③「窗口涨跌」=窗口最后交易日收盘 / 起始交易日收盘 −1（逐日口径）；图③-2「最高涨幅」=窗口内最高价日 high / 起始交易日收盘 −1（逐日口径，分母同为起始交易日收盘）。</p>
           <p>5. <b>数据边界：</b>新浪源约回溯至 2019 年，各合约样本 7–8 个年度；Y2705/Y2709 未进窗口未纳入。</p>
           <p>6. <b>更新机制：</b>数据由 GitHub Action 每交易日 16:30（北京时间）自动拉取新浪日线重算并提交，页面“刷新”即读最新；本报告为历史统计，不构成投资建议。</p>
         </div>

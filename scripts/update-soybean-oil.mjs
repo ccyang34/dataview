@@ -124,6 +124,7 @@ async function main() {
       // 逐日峰值: 起始交易日收盘 → 窗口内最高价日 high
       winDaily.sort((a, b) => a.d.localeCompare(b.d));
       const start = winDaily[0];
+      const end = winDaily[winDaily.length - 1];
       let peak = winDaily[0];
       for (const r of winDaily) if (r.h > peak.h) peak = r;
 
@@ -136,9 +137,12 @@ async function main() {
         first_idx: first,
         norm, abs, dates,
         win_pct: round((win.get(lastI).c / base - 1) * 100, 2),
+        win_daily_pct: round((end.c / start.c - 1) * 100, 2),
         peak_pct: round((peak.h / start.c - 1) * 100, 2),
         start_date: start.d,
         start_price: round(start.c, 0),
+        end_date: end.d,
+        end_price: round(end.c, 0),
         start_label: labelOf(start.d, dy, sm, yoff, cfg.labels),
         peak_date: peak.d,
         peak_price: round(peak.h, 0),
@@ -146,7 +150,8 @@ async function main() {
         bars: df.length,
       });
       console.log(sym, "nodes", win.size, dates[first], "~", dates[lastI],
-        "win%", series.at(-1).win_pct, "peak%", series.at(-1).peak_pct, "days", daily.size);
+        "win%", series.at(-1).win_pct, "winDaily%", series.at(-1).win_daily_pct,
+        "peak%", series.at(-1).peak_pct, "days", daily.size);
       dailyRecords.push({ symbol: sym, deliver_year: dy, daily, base, nodes: win.size,
         ordered: winDaily.map((r) => round((r.c / base) * 100, 2)) });
     }
