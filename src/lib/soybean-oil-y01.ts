@@ -38,6 +38,8 @@ export interface ContractType {
   series: ContractSeries[];
   avg_norm: (number | null)[];
   daily: { axis: string[]; series: DailySeries[] };
+  /** 逐日等权平均路径(图②): 各合约按窗口进度插值到统一轴后等权平均 */
+  daily_avg_norm: (number | null)[];
 }
 
 export interface SoybeanOilData {

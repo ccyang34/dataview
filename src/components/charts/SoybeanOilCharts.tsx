@@ -118,21 +118,41 @@ export function SoybeanOilCharts({ data }: { data: SoybeanOilData }) {
     };
   }, [types, curCt, mode, t]);
 
-  // ---------- 图②：三合约平均路径 ----------
+  // ---------- 图②：三合约平均路径（逐日） ----------
   const opt2 = useMemo(() => {
     const lineColor = [COLORS[0], COLORS[1], RED];
     const names = ["01合约(8→次年1月)", "05合约(12→次年5月)", "09合约(4→9月)"];
+    const n = types["01"].daily_avg_norm.length; // 121 (0~100%)
+    const xLabels = Array.from({ length: n }, (_, i) => i); // 索引, 显示时换算为第N交易日
     return {
       ...commonTheme,
-      tooltip: { ...commonTheme.tooltip, trigger: "axis" },
+      tooltip: {
+        ...commonTheme.tooltip,
+        trigger: "axis",
+        formatter: (ps: any[]) => {
+          if (!ps.length) return "";
+          const i = ps[0].dataIndex;
+          const pct = Math.round((i / (n - 1)) * 100);
+          let html = `<div style="font-weight:600;margin-bottom:3px">窗口进度 ${pct}%（第 ${i + 1} / ${n} 交易日）</div>`;
+          ps.forEach((p) => { if (p.value != null) html += `<div style="display:flex;gap:6px;justify-content:space-between;min-width:160px"><span>${p.marker}${p.seriesName}</span><b>${p.value}</b></div>`; });
+          return html;
+        },
+      },
       legend: { data: names, top: 0, textStyle: { color: t.muted, fontSize: 10 } },
-      grid: { left: 48, right: 20, top: 38, bottom: 28 },
-      xAxis: { type: "category", boundaryGap: false, data: ["第1月", "第2月", "第3月", "第4月", "第5月", "第6月"], axisLabel: { fontSize: 10, color: t.muted }, axisLine: { lineStyle: { color: t.border } } },
+      grid: { left: 48, right: 20, top: 38, bottom: 40 },
+      xAxis: {
+        type: "category", boundaryGap: false, data: xLabels,
+        name: "窗口内第 N 个交易日（等进度对齐）", nameLocation: "middle", nameGap: 26,
+        nameTextStyle: { fontSize: 10, color: t.muted },
+        axisLabel: { fontSize: 10, color: t.muted, interval: 19, formatter: (v: string) => `第${Number(v) + 1}日` },
+        axisLine: { lineStyle: { color: t.border } },
+      },
       yAxis: { type: "value", name: "归一化", scale: true, nameTextStyle: { color: t.muted, fontSize: 10 }, axisLabel: { color: t.muted, fontSize: 10 }, splitLine: { lineStyle: { color: t.split } } },
       series: CT.map((ct, i) => ({
-        name: names[i], type: "line", data: types[ct].avg_norm, smooth: true,
+        name: names[i], type: "line", data: types[ct].daily_avg_norm, smooth: 0.1,
+        showSymbol: false, connectNulls: true,
         lineStyle: { color: lineColor[i], width: i === 2 ? 2.6 : 2 },
-        itemStyle: { color: lineColor[i] }, symbolSize: 6,
+        itemStyle: { color: lineColor[i] }, emphasis: { focus: "series" },
       })),
     };
   }, [types, t]);
@@ -241,7 +261,7 @@ export function SoybeanOilCharts({ data }: { data: SoybeanOilData }) {
       </Card>
 
       {/* 图② */}
-      <Card title="② 三合约平均窗口路径对比" desc="横轴统一为“窗口内第 N 月”，三条线为各合约历年等权平均归一化路径（首月=100）。09 上升斜率最陡，01 最平。">
+      <Card title="② 三合约平均窗口路径对比（逐日）" desc="横轴为「窗口内第 N 个交易日」（等进度插值对齐，各合约窗口交易日数不同故按进度归一），三条线为各合约历年等权平均归一化逐日路径。末点与月末口径一致：09 上升斜率最陡，01 最平。">
         <ReactECharts option={opt2} style={{ height: 340, width: "100%" }} notMerge={true} opts={{ renderer: "svg" }} />
       </Card>
 
@@ -294,7 +314,7 @@ export function SoybeanOilCharts({ data }: { data: SoybeanOilData }) {
         <div className="text-xs text-[var(--muted)] space-y-1.5 leading-relaxed">
           <p>1. <b>标的：</b>豆油期货（Y）于 2006 年在大商所上市，01/05/09 为主力月份合约。</p>
           <p>2. <b>窗口区间：</b>每合约只取临近交割的核心主力窗口——01=8月~次年1月、05=12月~次年5月、09=4月~9月（各6个月）。</p>
-          <p>3. <b>对齐口径：</b>图①颗粒度=天，按日历月-日对齐到统一轴（各年约110个交易日），归一化基准=窗口首月末收盘=100；图②③④按自然月月末收盘6节点口径。</p>
+          <p>3. <b>对齐口径：</b>图①颗粒度=天，按日历月-日对齐到统一轴（各年约110个交易日）；图②颗粒度=天，各合约按窗口进度（第1~N交易日）线性插值到统一 121 点轴后等权平均，末点与月末口径一致；图③④按自然月月末收盘6节点口径。三图归一化基准均为窗口首月末收盘=100。</p>
           <p>4. <b>两种涨跌口径：</b>图③「窗口涨跌」=末月末/首月末−1（月末口径）；图③-2「最高涨幅」=窗口内最高价日 high / 起始交易日收盘 −1（逐日口径，基准不同）。</p>
           <p>5. <b>数据边界：</b>新浪源约回溯至 2019 年，各合约样本 7–8 个年度；Y2705/Y2709 未进窗口未纳入。</p>
           <p>6. <b>更新机制：</b>数据由 GitHub Action 每交易日 16:30（北京时间）自动拉取新浪日线重算并提交，页面“刷新”即读最新；本报告为历史统计，不构成投资建议。</p>

@@ -6,7 +6,7 @@
  * 字段: d=日期 o=开 h=高 l=低 c=收 v=量 p=持仓 s=结算
  *
  * 窗口(对称主力期): 01=8月~次年1月; 05=12月~次年5月; 09=4月~9月
- * 对齐: 月末6节点(图②③④) + 逐日MM-DD(图①) + 逐日峰值(图③-2)
+ * 对齐: 月末6节点(图③④) + 逐日MM-DD(图①) + 逐日等权平均(图②) + 逐日峰值(图③-2)
  * 输出: src/data/soybean-oil-y01.json
  *
  * 由 .github/workflows/soybean-oil-update.yml 定时/手动调用, 生成物提交入库。
@@ -85,7 +85,7 @@ async function main() {
     fetch_date: new Date().toISOString().slice(0, 10),
     updated_at: new Date().toISOString(),
     window_rule: "对称主力期: 01合约8月~次年1月; 05合约12月~次年5月; 09合约4月~9月",
-    align_note: "月末6节点(首月末=100) + 逐日MM-DD对齐 + 逐日峰值(起始交易日收盘→最高价日high)",
+    align_note: "月末6节点(首月末=100) + 逐日MM-DD对齐(图①) + 逐日等权平均路径(图②) + 逐日峰值(起始交易日收盘→最高价日high)",
     types: {},
   };
 
@@ -147,7 +147,8 @@ async function main() {
       });
       console.log(sym, "nodes", win.size, dates[first], "~", dates[lastI],
         "win%", series.at(-1).win_pct, "peak%", series.at(-1).peak_pct, "days", daily.size);
-      dailyRecords.push({ symbol: sym, deliver_year: dy, daily, base, nodes: win.size });
+      dailyRecords.push({ symbol: sym, deliver_year: dy, daily, base, nodes: win.size,
+        ordered: winDaily.map((r) => round((r.c / base) * 100, 2)) });
     }
 
     // 平均窗口路径(等权, 各节点有效值平均)
@@ -193,6 +194,25 @@ async function main() {
       };
     });
 
+    // 逐日等权平均路径(图②): 各合约窗口交易日数不同(进行中合约更短),
+    // 先按各自交易日序号映射到统一的进度轴(0~100%, 共 STEP 个点), 线性插值, 再等权平均。
+    // 这样所有合约全程覆盖, 起点=100、末点≈月末口径, 不受个别合约长度差异干扰。
+    const STEP = 120;
+    const dailyAvgNorm = [];
+    for (let k = 0; k <= STEP; k++) {
+      const p = k / STEP;
+      const vals = dailyRecords.map((r) => {
+        const n = r.ordered.length;
+        if (!n) return null;
+        const pos = p * (n - 1);
+        const lo = Math.floor(pos), hi = Math.ceil(pos);
+        const a = r.ordered[lo], b = r.ordered[hi];
+        if (a == null || b == null) return null;
+        return lo === hi ? a : round(a + (b - a) * (pos - lo), 2);
+      }).filter((v) => v != null);
+      dailyAvgNorm.push(vals.length ? round(vals.reduce((a, b) => a + b, 0) / vals.length, 2) : null);
+    }
+
     out.types[ct] = {
       name: `${ct}合约`,
       labels: cfg.labels,
@@ -200,8 +220,10 @@ async function main() {
       series,
       avg_norm: avg,
       daily: { axis: axisDays, series: dailySeries },
+      daily_avg_norm: dailyAvgNorm,
     };
-    console.log(`\n[${ct}] avg:`, avg, "| daily axis:", axisDays.length, "天", axisDays[0], "~", axisDays.at(-1));
+    console.log(`\n[${ct}] avg:`, avg, "| daily axis:", axisDays.length, "天", axisDays[0], "~", axisDays.at(-1),
+      "| daily_avg 非空:", dailyAvgNorm.filter((v) => v != null).length);
   }
 
   fs.mkdirSync(path.dirname(OUT_FILE), { recursive: true });
