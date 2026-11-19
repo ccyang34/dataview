@@ -297,7 +297,7 @@ export function SoybeanOilCharts({ data }: { data: SoybeanOilData }) {
                   {types[ct].series.map((s) => (
                     <tr key={s.symbol} className="border-t border-[var(--border)] hover:bg-[var(--card-hover)]">
                       <td className="p-2 text-left whitespace-nowrap font-bold">{s.symbol}{s.nodes < 6 && <span style={{ color: RED, fontSize: 10 }}> (进行中)</span>}</td>
-                      <td className="p-2 whitespace-nowrap">{s.deliver_year}-01</td>
+                      <td className="p-2 whitespace-nowrap">{s.deliver_year}</td>
                       <td className="p-2 whitespace-nowrap">{s.win_start?.slice(0, 7)}</td>
                       <td className="p-2 whitespace-nowrap">{Math.round(s.abs[0] ?? 0)} → {Math.round(s.abs[s.nodes - 1] ?? 0)}</td>
                       <td className="p-2 whitespace-nowrap font-semibold" style={{ color: s.win_pct >= 0 ? RED : GREEN }}>{s.win_pct > 0 ? "+" : ""}{s.win_pct.toFixed(1)}%</td>
