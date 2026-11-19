@@ -45,6 +45,13 @@ export function PalmOilCharts({ data }: { data: PalmOilData }) {
   const t = useThemeColors();
   const [curCt, setCurCt] = useState<(typeof CT)[number]>("01");
   const [mode, setMode] = useState<"norm" | "abs">("norm");
+  // 图③/③-2 共享图例选中状态：点任一图例，两图同步切换合约
+  const [legendSel, setLegendSel] = useState<Record<string, boolean>>({
+    "01合约": true, "05合约": true, "09合约": true,
+  });
+  const onLegendChange = (params: { name: string; selected: Record<string, boolean> }) => {
+    setLegendSel({ ...params.selected });
+  };
 
   const types = data.types;
   const avgChange = useMemo(() => {
@@ -217,15 +224,15 @@ export function PalmOilCharts({ data }: { data: PalmOilData }) {
           return html;
         },
       },
-      legend: { data: barLegend, top: 0, textStyle: { color: t.muted, fontSize: 10 } },
+      legend: { data: barLegend, top: 0, selected: legendSel, textStyle: { color: t.muted, fontSize: 10 } },
       grid: { left: 44, right: 16, top: 36, bottom: 26 },
       xAxis: { type: "category", data: years.map((y) => String(y).slice(2)), axisLabel: { fontSize: 10, color: t.muted }, axisLine: { lineStyle: { color: t.border } } },
       yAxis: { type: "value", name, nameTextStyle: { color: t.muted, fontSize: 10 }, axisLabel: { color: t.muted, fontSize: 10, formatter: "{value}%" }, splitLine: { lineStyle: { color: t.split } } },
       series,
     };
   };
-  const opt3 = useMemo(() => buildBarOption("win_daily_pct", "起→末%", false), [types, t]);
-  const opt32 = useMemo(() => buildBarOption("peak_pct", "最高%", true), [types, t]);
+  const opt3 = useMemo(() => buildBarOption("win_daily_pct", "起→末%", false), [types, t, legendSel]);
+  const opt32 = useMemo(() => buildBarOption("peak_pct", "最高%", true), [types, t, legendSel]);
 
   return (
     <div className="space-y-6">
@@ -283,10 +290,10 @@ export function PalmOilCharts({ data }: { data: PalmOilData }) {
       {/* 图③ + ③-2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card title="③ 各交割年三合约窗口涨跌幅（起始→末）" desc="按交割年分组，同月三合约「窗口起始交易日收盘→最后交易日收盘」涨跌并列对比（红涨绿跌）。悬停看真实起止日期与价格。">
-          <ReactECharts option={opt3} style={{ height: 330, width: "100%" }} notMerge={true} opts={{ renderer: "svg" }} />
+          <ReactECharts option={opt3} style={{ height: 330, width: "100%" }} notMerge={true} opts={{ renderer: "svg" }} onEvents={{ legendselectchanged: onLegendChange }} />
         </Card>
         <Card title="③-2 起始日→最高价日涨幅（逐日）" desc="逐日真实行情：起始交易日收盘 → 窗口内最高价日日内最高价（high）的涨幅，衡量区间最大上行空间。峰值即起始日显示灰柱。悬停看具体日期。">
-          <ReactECharts option={opt32} style={{ height: 330, width: "100%" }} notMerge={true} opts={{ renderer: "svg" }} />
+          <ReactECharts option={opt32} style={{ height: 330, width: "100%" }} notMerge={true} opts={{ renderer: "svg" }} onEvents={{ legendselectchanged: onLegendChange }} />
         </Card>
       </div>
 
