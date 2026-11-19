@@ -1,0 +1,37 @@
+name: Update Palm Oil (P) Main Contracts Data
+
+on:
+  schedule:
+    # 交易日北京时间 16:30 (UTC 08:30) 拉取新浪日线并重算棕榈油 01/05/09 分析数据
+    - cron: '30 8 * * 1-5'
+  workflow_dispatch: # 允许手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch data & rebuild JSON
+        run: node scripts/update-palm-oil.mjs
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/data/palm-oil-p01.json
+          if git diff --cached --quiet; then
+            echo "No data changes, skip commit."
+          else
+            git commit -m "chore: update palm oil P01/05/09 analysis data $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          fi
