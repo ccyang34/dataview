@@ -50,7 +50,7 @@ async function fetchDaily(sym) {
     if (!m) return [];
     const arr = JSON.parse(m[1]);
     if (!Array.isArray(arr)) return [];
-    return arr.map((it) => ({ d: String(it.d), c: parseFloat(it.c) })).filter((x) => x.d && !Number.isNaN(x.c));
+    return arr.map((it) => ({ d: String(it.d), c: parseFloat(it.c), p: parseFloat(it.p) })).filter((x) => x.d && !Number.isNaN(x.c));
   } catch (e) {
     console.warn(`  ${sym} 拉取失败: ${e.message}`);
     return [];
@@ -106,6 +106,147 @@ function buildRows() {
     }
   }
   return rows;
+}
+
+/**
+ * 持仓量二次分析：把每日持仓序列(p)并到形态样本上。
+ * 关键区分：
+ *  - 持仓"生命周期曲线"(先增仓→临近交割减仓)与形态几乎无关，早期持仓不能预判；
+ *  - "期初持仓同比"(新合约相对上一交割年同合约的期初持仓)是独立的事前信号；
+ *  - "价格高点时的持仓水位"区分力极强，但本质是高点出现时间的代理，属事后确认。
+ */
+function attachOiFeatures(rows) {
+  let ok = 0;
+  for (const [oil, d] of Object.entries(D)) {
+    for (const ct of CT) {
+      const ddMap = new Map(d.types[ct].daily.series.map((x) => [x.symbol, x]));
+      const sMap = new Map(d.types[ct].series.map((x) => [x.symbol, x]));
+      const grp = rows.filter((r) => r.oil === oil && r.ct === ct);
+      for (const r of grp) {
+        const dd = ddMap.get(r.sym), s = sMap.get(r.sym);
+        if (!dd || !Array.isArray(dd.oi) || !s) continue;
+        const P = dd.abs.map((p, i) => ({ p, o: dd.oi[i], d: dd.dates[i] }))
+          .filter((x) => x.p != null && x.o != null && x.o > 0);
+        if (P.length < 30) continue;
+        const n = P.length, o0 = P[0].o;
+        const curve = Array.from({ length: 21 }, (_, k) => round(P[Math.round(k / 20 * (n - 1))].o / o0 * 100, 1));
+        let maxI = 0;
+        P.forEach((x, i) => { if (x.o > P[maxI].o) maxI = i; });
+        let pi = P.findIndex((x) => x.d === s.peak_date);
+        if (pi < 0) pi = Math.min(s.peak_days ?? 0, n - 1);
+        Object.assign(r, {
+          oiStart: Math.round(o0),
+          oiAtPeak: round((P[pi].o / o0 - 1) * 100, 1),      // 价格高点日持仓 vs 起点
+          oiChg: round((P[n - 1].o / o0 - 1) * 100, 1),        // 全程持仓变化
+          oiEarly20: round((P[Math.min(19, n - 1)].o / o0 - 1) * 100, 1),
+          oiPeakProg: round(maxI / (n - 1) * 100, 0),          // 持仓峰出现在窗口的进度
+          oiLag: maxI - pi,                                    // 持仓峰相对价格峰的交易日差
+          oiCurve: curve,
+        });
+        ok++;
+      }
+      // 期初持仓的历史分位与同比（同品种同合约逐年）
+      const withOi = grp.filter((r) => r.oiStart != null).sort((a, b) => a.year - b.year);
+      const vals = withOi.map((r) => r.oiStart);
+      withOi.forEach((r, i) => {
+        r.oiStartPct = round(vals.filter((v) => v < r.oiStart).length / vals.length * 100, 0);
+        r.oiYoy = i > 0 ? round((r.oiStart / withOi[i - 1].oiStart - 1) * 100, 1) : null;
+      });
+    }
+  }
+  return ok;
+}
+
+/** 2705 当前持仓 vs 上一交割年 05 合约同期持仓（代理同比） */
+async function fetchOiForecast() {
+  const out = {};
+  for (const [sym, prev] of [["Y2705", "Y2605"], ["P2705", "P2605"]]) {
+    const [a, b] = await Promise.all([fetchDaily(sym), fetchDaily(prev)]);
+    const cur = a.at(-1);
+    const y = cur ? String(Number(cur.d.slice(0, 4)) - 1) : "";
+    const mm = cur ? cur.d.slice(5, 7) : "";
+    const base = b.filter((x) => x.d.startsWith(`${y}-${mm}`) && +x.d.slice(8, 10) >= 15 && +x.d.slice(8, 10) <= 21).at(-1) || b.at(-1);
+    out[sym] = {
+      oi: cur?.p ?? null,
+      prevOi: base?.p ?? null,
+      asof: cur?.d ?? null,
+      prevDate: base?.d ?? null,
+      yoy: cur?.p && base?.p ? round((cur.p / base.p - 1) * 100, 1) : null,
+    };
+    console.log(`  ${sym} 持仓代理: ${out[sym].oi} vs ${out[sym].prevOi} (${out[sym].prevDate}) → ${out[sym].yoy}%`);
+  }
+  return out;
+}
+
+/** 持仓量二次分析主计算 */
+async function oiAnalysis(rows) {
+  const core = rows.filter((r) => (r.tag === "早顶" || r.tag === "晚顶") && r.oiYoy != null);
+  const E = core.filter((r) => r.tag === "早顶"), L = core.filter((r) => r.tag === "晚顶");
+  const avgCurve = (g) => Array.from({ length: 21 }, (_, k) => round(mean(g.map((r) => r.oiCurve[k])), 1));
+  const withOi = rows.filter((r) => r.oiCurve != null);
+
+  // (1) 生命周期：持仓曲线本身能否预判？
+  const earlyKeys = ["oiEarly20", "oiStartPct", "oiYoy"];
+  const earlyAuc = {};
+  earlyKeys.forEach((k) => { earlyAuc[k] = auc(core, k); });
+  // oiYoy 已是百分数；除以 100 复用 permutationTest 的 pp 口径
+  const perm = permutationTest(E.map((r) => r.oiYoy / 100), L.map((r) => r.oiYoy / 100));
+  const loo = looAccuracy(core, "oiYoy");
+  const byOil = {};
+  for (const oil of Object.keys(D)) {
+    const g = core.filter((r) => r.oil === oil);
+    byOil[oil] = {
+      n: g.length,
+      auc: auc([...g.filter((r) => r.tag === "晚顶").map((r) => ({ tag: "晚顶", v: r.oiYoy })),
+        ...g.filter((r) => r.tag === "早顶").map((r) => ({ tag: "早顶", v: r.oiYoy }))], "v"),
+      earlyAvg: round(mean(g.filter((r) => r.tag === "早顶").map((r) => r.oiYoy)), 1),
+      lateAvg: round(mean(g.filter((r) => r.tag === "晚顶").map((r) => r.oiYoy)), 1),
+    };
+  }
+  const lifecycle = {
+    axis: Array.from({ length: 21 }, (_, k) => k * 5),
+    all: avgCurve(withOi),
+    early: avgCurve(withOi.filter((r) => r.tag === "早顶")),
+    late: avgCurve(withOi.filter((r) => r.tag === "晚顶")),
+    earlyAuc, permutation: perm, loo,
+    baseline: { hits: Math.max(E.length, L.length), total: core.length },
+    byOil,
+    earlyAvg: round(mean(E.map((r) => r.oiYoy)), 1),
+    lateAvg: round(mean(L.map((r) => r.oiYoy)), 1),
+    yearRho: spearman(core.map((r) => r.oiYoy), core.map((r) => r.year)),
+    note: "持仓生命周期曲线（先快速增仓、临近交割减仓）在早/晚顶组几乎重合；前20日持仓变化 AUC≈0.5，不能预判。但期初持仓同比是独立信号：同比减少的合约多为晚顶。",
+  };
+
+  // (2) 价格高点时的持仓水位：事后确认
+  const inc = core.filter((r) => r.oiAtPeak > 0), dec = core.filter((r) => r.oiAtPeak <= 0);
+  const atPeak = {
+    earlyAvg: round(mean(E.map((r) => r.oiAtPeak)), 1),
+    lateAvg: round(mean(L.map((r) => r.oiAtPeak)), 1),
+    auc: auc(core, "oiAtPeak"),
+    inc: { n: inc.length, late: inc.filter((r) => r.tag === "晚顶").length },
+    dec: { n: dec.length, late: dec.filter((r) => r.tag === "晚顶").length },
+    oiPeakProgEarly: round(mean(E.map((r) => r.oiPeakProg)), 0),
+    oiPeakProgLate: round(mean(L.map((r) => r.oiPeakProg)), 0),
+    note: "高点持仓水位区分力极强，但持仓峰进度在两组几乎相同（约 1/3 窗口），说明这是「价格高点何时出现」的代理，属事后确认而非事前预判。",
+  };
+
+  // (3) 期初价分位 × 期初持仓同比 二维矩阵
+  const matrix = [];
+  for (const [qL, qLo, qHi] of [["低分位 <50%", 0, 0.5], ["高分位 ≥50%", 0.5, 1.01]]) {
+    for (const [oL, oNeg] of [["持仓同比 <0（缩量）", true], ["持仓同比 ≥0（增量）", false]]) {
+      const g = core.filter((r) => r.startPct >= qLo && r.startPct < qHi && (oNeg ? r.oiYoy < 0 : r.oiYoy >= 0));
+      const late = g.filter((r) => r.tag === "晚顶").length;
+      matrix.push({ q: qL, oi: oL, n: g.length, late, early: g.length - late,
+        lateRate: g.length ? round(late / g.length * 100, 0) : null,
+        avgEnd: g.length ? round(mean(g.map((r) => r.end)), 1) : null,
+        syms: g.map((r) => r.sym) });
+    }
+  }
+
+  console.log("持仓二次分析: core", core.length, "| 同比AUC", earlyAuc.oiYoy, "p", perm.pValue,
+    "| LOO", `${loo.hits}/${loo.total}`, "| 高点持仓AUC", atPeak.auc);
+  return { coverage: { total: rows.length, withOi: withOi.length, core: core.length },
+    lifecycle, atPeak, matrix, forecast: await fetchOiForecast() };
 }
 
 function auc(rows, key) {
@@ -178,6 +319,8 @@ async function main() {
   const rows = buildRows();
   const core = rows.filter((r) => r.tag === "早顶" || r.tag === "晚顶");
   console.log(`构造合约年样本 ${rows.length} 条，早/晚顶核心 ${core.length} 条`);
+  const oiN = attachOiFeatures(rows);
+  console.log(`持仓序列并入 ${oiN} 条`);
 
   // ---- 1. 形态验证 ----
   const shapeValidation = {
@@ -358,6 +501,15 @@ async function main() {
     caveat: "窗口12月才开始，当前用11月中旬价作起点代理；历史校准 Spearman ρ 高，代理分位排序可靠，但12月底需用真实起点价复核。",
   };
 
+  // ---- 7. 持仓量二次分析 ----
+  const oi = await oiAnalysis(rows);
+  const sigOf = (y) => y == null ? "未知" : y < 0 ? "晚顶" : "早顶";
+  oi.forecast.combined = {
+    Y2705: { oiSignal: sigOf(oi.forecast.Y2705.yoy), priceSignal: forecast.contracts.Y2705.verdict },
+    P2705: { oiSignal: sigOf(oi.forecast.P2705.yoy), priceSignal: forecast.contracts.P2705.verdict },
+    note: "价格分位为事前信号、持仓同比为独立事前信号；两者一致时结论增强，冲突时需在 12 月用真实起点价与持仓复核。",
+  };
+
   // ---- 真实路径样本（形态对比图，取非归一化绝对价归一到起点=100） ----
   const sampleSyms = ["Y2001", "Y2005", "P2009"];
   const paths = {};
@@ -386,8 +538,10 @@ async function main() {
       windowRule: D["豆油"].window_rule,
     },
     shapeValidation, shapeGroups, earlyFeatures, quantileSignal, monthJump, forecast, paths,
+    oiAnalysis: oi,
     allRows: rows.map((r) => ({ oil: r.oil, ct: r.ct, sym: r.sym, year: r.year, pos: r.pos, tag: r.tag,
-      peak: r.peak, end: r.end, fall: r.fall, startPct: r.startPct == null ? null : round(r.startPct * 100, 0) })),
+      peak: r.peak, end: r.end, fall: r.fall, startPct: r.startPct == null ? null : round(r.startPct * 100, 0),
+      oiAtPeak: r.oiAtPeak ?? null, oiYoy: r.oiYoy ?? null })),
   };
 
   fs.mkdirSync(path.dirname(OUT_FILE), { recursive: true });

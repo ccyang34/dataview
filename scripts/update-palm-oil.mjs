@@ -51,6 +51,7 @@ async function loadSymbol(sym, retries = 3) {
         d: String(it.d),
         c: parseFloat(it.c),
         h: parseFloat(it.h),
+        p: parseFloat(it.p), // 持仓量
       })).filter((x) => x.d && !Number.isNaN(x.c) && !Number.isNaN(x.h));
     } catch (e) {
       if (attempt === retries) {
@@ -108,8 +109,8 @@ async function main() {
         const idx = (y - (dy + yoff)) * 12 + (m - sm);
         if (idx >= 0 && idx <= 5) {
           win.set(idx, { d: row.d, c: row.c });          // 覆盖到月末
-          daily.set(row.d.slice(5), { d: row.d, c: row.c, idx });
-          winDaily.push({ d: row.d, c: row.c, h: row.h });
+          daily.set(row.d.slice(5), { d: row.d, c: row.c, idx, oi: Number.isFinite(row.p) ? row.p : null });
+          winDaily.push({ d: row.d, c: row.c, h: row.h, p: row.p });
         }
       }
       if (win.size < 2) { console.log(sym, "FEW-WINDOW", [...win.keys()]); continue; }
@@ -182,21 +183,22 @@ async function main() {
     }
     const axisDays = [...order.entries()].sort((a, b) => a[1] - b[1]).map(([md]) => md);
     const dailySeries = dailyRecords.map((rec) => {
-      const norm = [], abs = [], dates = [];
+      const norm = [], abs = [], dates = [], oi = [];
       for (const md of axisDays) {
         const v = rec.daily.get(md);
         if (v) {
           norm.push(round((v.c / rec.base) * 100, 2));
           abs.push(round(v.c, 0));
           dates.push(v.d);
+          oi.push(v.oi);
         } else {
-          norm.push(null); abs.push(null); dates.push(null);
+          norm.push(null); abs.push(null); dates.push(null); oi.push(null);
         }
       }
       return {
         symbol: rec.symbol,
         deliver_year: rec.deliver_year,
-        norm, abs, dates,
+        norm, abs, dates, oi,
         n_days: norm.filter((v) => v != null).length,
         is_partial: rec.nodes < 6,
       };

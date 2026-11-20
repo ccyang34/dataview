@@ -100,6 +100,71 @@ export interface DataRow {
   end: number;
   fall: number;
   startPct: number | null;
+  oiAtPeak: number | null;
+  oiYoy: number | null;
+}
+
+/** 持仓量二次分析 */
+export interface OiLifecycle {
+  axis: number[];
+  all: number[];
+  early: number[];
+  late: number[];
+  earlyAuc: Record<string, number>;
+  permutation: { diffPp: number; pValue: number; significant: boolean; permutations: number };
+  loo: { hits: number; total: number };
+  baseline: { hits: number; total: number };
+  byOil: Record<string, { n: number; auc: number; earlyAvg: number; lateAvg: number }>;
+  earlyAvg: number;
+  lateAvg: number;
+  yearRho: number;
+  note: string;
+}
+
+export interface OiAtPeak {
+  earlyAvg: number;
+  lateAvg: number;
+  auc: number;
+  inc: { n: number; late: number };
+  dec: { n: number; late: number };
+  oiPeakProgEarly: number;
+  oiPeakProgLate: number;
+  note: string;
+}
+
+export interface OiMatrixCell {
+  q: string;
+  oi: string;
+  n: number;
+  late: number;
+  early: number;
+  lateRate: number | null;
+  avgEnd: number | null;
+  syms: string[];
+}
+
+export interface OiForecastContract {
+  oi: number | null;
+  prevOi: number | null;
+  asof: string | null;
+  prevDate: string | null;
+  yoy: number | null;
+}
+
+export interface OiAnalysis {
+  coverage: { total: number; withOi: number; core: number };
+  lifecycle: OiLifecycle;
+  atPeak: OiAtPeak;
+  matrix: OiMatrixCell[];
+  forecast: {
+    Y2705: OiForecastContract;
+    P2705: OiForecastContract;
+    combined: {
+      Y2705: { oiSignal: string; priceSignal: string };
+      P2705: { oiSignal: string; priceSignal: string };
+      note: string;
+    };
+  };
 }
 
 export interface OilShapeResearchData {
@@ -114,6 +179,7 @@ export interface OilShapeResearchData {
   monthJump: MonthJump;
   forecast: Forecast;
   paths: Record<string, { oil: string; norm: number[] }>;
+  oiAnalysis: OiAnalysis;
   allRows: DataRow[];
 }
 

@@ -47,7 +47,7 @@ const colorOf = (v: number) => v >= 0 ? RED : GREEN;
 
 export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData }) {
   const t = useThemeColors();
-  const { shapeValidation: sv, shapeGroups: sg, earlyFeatures: ef, quantileSignal: qs, monthJump: mj, forecast: fc, paths, allRows } = data;
+  const { shapeValidation: sv, shapeGroups: sg, earlyFeatures: ef, quantileSignal: qs, monthJump: mj, forecast: fc, paths, allRows, oiAnalysis: oi } = data;
 
   const common = {
     backgroundColor: "transparent",
@@ -150,6 +150,59 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
     ],
   }), [mj, t]);
 
+  // ---- 持仓量二次分析图表 ----
+  // 图6：持仓生命周期曲线（起点=100，按窗口进度）
+  const oiCurveOption = useMemo(() => {
+    const mk = (name: string, arr: number[], color: string, width: number) => ({
+      name, type: "line", data: arr, showSymbol: false, smooth: true,
+      lineStyle: { width, color, type: name === "全样本" ? "dashed" : "solid" },
+      itemStyle: { color },
+    });
+    return {
+      ...common,
+      tooltip: { trigger: "axis", backgroundColor: t.card, borderColor: t.border, textStyle: { color: t.fg },
+        valueFormatter: (v: number) => Number(v).toFixed(0) },
+      legend: { data: ["全样本", "早顶型", "晚顶型"], top: 0, textStyle: { color: t.muted, fontSize: 11 } },
+      grid: { left: 50, right: 18, top: 34, bottom: 30 },
+      xAxis: { type: "category", name: "窗口进度 %", data: oi.lifecycle.axis.map(String), nameTextStyle: { color: t.muted, fontSize: 10 },
+        axisLabel: { color: t.muted, fontSize: 10, interval: 3 }, axisLine: { lineStyle: { color: t.border } } },
+      yAxis: { type: "value", name: "持仓 / 起点", nameTextStyle: { color: t.muted, fontSize: 10 }, axisLabel: { color: t.muted, fontSize: 10 },
+        splitLine: { lineStyle: { color: t.split } } },
+      series: [
+        mk("全样本", oi.lifecycle.all, "#B4B2A9", 2),
+        mk("早顶型", oi.lifecycle.early, "#E24B4A", 2.4),
+        mk("晚顶型", oi.lifecycle.late, "#378ADD", 2.4),
+      ],
+    };
+  }, [oi, t]);
+
+  // 图7：各信号判别力 |AUC-0.5|×2（0=抛硬币，1=完美）
+  const oiSignalOption = useMemo(() => {
+    const items = [
+      { name: "前10日涨幅", auc: ef.auc.r10, kind: "走势" },
+      { name: "前20日持仓变化", auc: oi.lifecycle.earlyAuc.oiEarly20, kind: "持仓" },
+      { name: "期初持仓分位", auc: oi.lifecycle.earlyAuc.oiStartPct, kind: "持仓" },
+      { name: "期初持仓同比 ★", auc: oi.lifecycle.earlyAuc.oiYoy, kind: "持仓" },
+      { name: "期初价分位 ★", auc: ef.auc.startPct, kind: "价格" },
+    ].map((x) => ({ ...x, power: Math.abs(x.auc - 0.5) * 2 }));
+    return {
+      ...common,
+      tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, backgroundColor: t.card, borderColor: t.border, textStyle: { color: t.fg },
+        formatter: (ps: { dataIndex: number }[]) => {
+          const x = items[ps[0].dataIndex];
+          return `${x.name}<br/>判别力 ${x.power.toFixed(2)}（原始 AUC ${x.auc}）<br/>${x.auc < 0.5 ? "低值指向晚顶" : "高值指向晚顶"}`;
+        } },
+      grid: { left: 110, right: 44, top: 12, bottom: 26 },
+      xAxis: { type: "value", min: 0, max: 1, axisLabel: { color: t.muted, fontSize: 10 }, splitLine: { lineStyle: { color: t.split } } },
+      yAxis: { type: "category", data: items.map((x) => x.name), axisLabel: { color: t.muted, fontSize: 10 }, axisLine: { lineStyle: { color: t.border } } },
+      series: [{
+        type: "bar", barWidth: "55%",
+        data: items.map((x) => ({ value: Math.round(x.power * 100) / 100, itemStyle: { color: x.kind === "持仓" ? (x.auc === oi.lifecycle.earlyAuc.oiYoy ? "#7F77DD" : "#B4A7E8") : x.kind === "价格" ? GREEN : "#C9C5BB", borderRadius: [0, 3, 3, 0] } })),
+        label: { show: true, position: "right", color: t.fg, fontSize: 10, formatter: (p: { value: number }) => p.value.toFixed(2) },
+      }],
+    };
+  }, [oi, ef, t]);
+
   // ---- 复刻用户称赞的 2705 分位预判图（纯 CSS） ----
   const QuantileBar = ({ label, price, q, note }: { label: string; price: number; q: number; note: string }) => (
     <div style={{ marginBottom: 22 }}>
@@ -191,6 +244,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
           <p><b>2. 但「先高后低」藏着两种相反的结局：</b>早顶型（占 {sg.early.share}%）冲高后一路阴跌、末值 <b style={{ color: colorOf(sg.early.avgEnd) }}>{pct(sg.early.avgEnd)}</b>；晚顶型（占 {sg.late.share}%）涨了几乎全程、末值 <b style={{ color: colorOf(sg.late.avgEnd) }}>{pct(sg.late.avgEnd)}</b>。</p>
           <p><b>3. 早期走势无法预判</b>（AUC 全在 0.4–0.56 = 抛硬币），<b style={{ color: GREEN }}>但期初价的历史分位可以</b>：低位启动 80% 是晚顶，高位启动 82% 是早顶（置换检验 p={qs.permutation.pValue}）。</p>
           <p><b>4. 2705 预判：</b>Y2705（分位 {fc.contracts.Y2705.quantile}%）与 P2705（分位 {fc.contracts.P2705.quantile}%）均处高位 → <b style={{ color: RED }}>{fc.verdict}型</b>；叠加 05 合约自 {fc.structural.noLateSince} 年起连续无晚顶，倾向冲高回落、不宜持有到末段。</p>
+          <p><b>5. 持仓量二次分析：</b>持仓曲线本身无预判力（早期 AUC≈0.5），<b style={{ color: GREEN }}>但期初持仓同比是独立的事前信号</b>（AUC {oi.lifecycle.earlyAuc.oiYoy}，置换检验 p={oi.lifecycle.permutation.pValue}）：同比缩量偏晚顶、增量偏早顶。与期初价分位叠加后，<b>低价+缩量 8/8 晚顶、高价+增量 7/9 早顶</b>；2705 上棕榈油两信号一致（持仓同比 {pct(oi.forecast.P2705.yoy ?? 0)}），豆油略冲突但信号弱（{pct(oi.forecast.Y2705.yoy ?? 0)}）。</p>
         </div>
       </div>
 
@@ -329,6 +383,87 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
         </p>
       </Card>
 
+      {/* ============ 二次分析：持仓量 ============ */}
+      <Card tag="二次分析" title="加入持仓量：有效的是「期初持仓同比」，不是持仓曲线" desc={`新浪日线的每日持仓量并入全部 ${oi.coverage.withOi} 个合约年。先证伪直觉（持仓曲线无预判力），再给出真正有效的事前信号，并与期初价分位交叉。`}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <ReactECharts option={oiCurveOption} style={{ height: 300, width: "100%" }} notMerge opts={{ renderer: "svg" }} />
+            <p className="text-[11px] text-[var(--muted)] mt-2 leading-relaxed">
+              持仓生命周期与形态几乎无关：起点 100 → 20% 进度约 185 → 终点不足 10（临近交割移仓换月）。早顶、晚顶两条曲线基本重合；前 20 日持仓变化 AUC <b>{oi.lifecycle.earlyAuc.oiEarly20}</b>，与抛硬币无异。<b>看持仓曲线本身，预判不了形态。</b>
+            </p>
+          </div>
+          <div>
+            <ReactECharts option={oiSignalOption} style={{ height: 300, width: "100%" }} notMerge opts={{ renderer: "svg" }} />
+            <p className="text-[11px] text-[var(--muted)] mt-2 leading-relaxed">
+              判别力 = |AUC−0.5|×2（0=抛硬币）。持仓同比低（新合约较上年同期缩量）指向晚顶：早顶组均值 <b style={{ color: RED }}>{pct(oi.lifecycle.earlyAvg)}</b>、晚顶组 <b style={{ color: GREEN }}>{pct(oi.lifecycle.lateAvg)}</b>，AUC <b>{oi.lifecycle.earlyAuc.oiYoy}</b>（反向 0.77），置换检验 <b style={{ color: GREEN }}>p={oi.lifecycle.permutation.pValue}</b>。但留一命中 {oi.lifecycle.loo.hits}/{oi.lifecycle.loo.total} vs 基线 {oi.lifecycle.baseline.hits}/{oi.lifecycle.baseline.total}，且与年份秩相关 ρ={oi.lifecycle.yearRho}——<b style={{ color: t.fg }}>概率倾向，不是确定性规则</b>。
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <div className="text-sm font-semibold mb-2">双信号矩阵：期初价分位 × 期初持仓同比</div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead><tr className="text-[var(--muted)] border-b border-[var(--border)]">
+                {["期初价分位", "持仓同比", "样本", "晚顶 / 早顶", "晚顶率", "平均末涨"].map((h, i) => <th key={h} className={`p-2 font-medium whitespace-nowrap ${i < 2 ? "text-left" : "text-center"}`}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {oi.matrix.map((c, i) => (
+                  <tr key={i} className="border-b border-[var(--border)]">
+                    <td className="p-2 text-left font-semibold whitespace-nowrap">{c.q}</td>
+                    <td className="p-2 text-left whitespace-nowrap">{c.oi}</td>
+                    <td className="p-2 text-center">{c.n}</td>
+                    <td className="p-2 text-center">{c.late} / {c.early}</td>
+                    <td className="p-2 text-center font-semibold" style={{ color: c.lateRate == null ? t.muted : colorOf(c.lateRate - 50) }}>{c.lateRate == null ? "—" : c.lateRate + "%"}</td>
+                    <td className="p-2 text-center font-semibold" style={{ color: c.avgEnd == null ? t.muted : colorOf(c.avgEnd) }}>{c.avgEnd == null ? "—" : pct(c.avgEnd)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[11px] text-[var(--muted)] mt-2 leading-relaxed">
+            两个维度相互独立：<b style={{ color: GREEN }}>低价 + 缩量 8/8 全部晚顶、平均末涨 +28.5%</b>；<b style={{ color: RED }}>高价 + 增量 7/9 早顶、平均末涨 −2.2%</b>。单看一个信号是概率，叠加后极端组明显更干净。小样本（每格 7–9 例），只作倾向。
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+          {[
+            { lab: "早顶型 · 高点持仓", val: pct(oi.atPeak.earlyAvg), note: "高点时仍有大量持仓" },
+            { lab: "晚顶型 · 高点持仓", val: pct(oi.atPeak.lateAvg), note: "高点时持仓已基本撤出" },
+            { lab: "持仓峰进度 早 / 晚", val: `${oi.atPeak.oiPeakProgEarly}% / ${oi.atPeak.oiPeakProgLate}%`, note: "两组几乎相同 → 事后代理" },
+          ].map((k, i) => (
+            <div key={i} className="rounded-lg p-3" style={{ background: "var(--card-hover)" }}>
+              <div className="text-[11px] text-[var(--muted)]">{k.lab}</div>
+              <div className="text-lg font-bold mt-1" style={{ color: i === 0 ? RED : i === 1 ? GREEN : undefined }}>{k.val}</div>
+              <div className="text-[10px] text-[var(--muted)] mt-0.5">{k.note}</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] text-[var(--muted)] mt-2 leading-relaxed">
+          高点持仓水位区分力极强（{oi.atPeak.inc.n} 个「高点仍增仓」合约中晚顶 {oi.atPeak.inc.late} 个；{oi.atPeak.dec.n} 个「高点已减仓」中晚顶 {oi.atPeak.dec.late} 个），但持仓峰进度在两组几乎相同——<b style={{ color: t.fg }}>这是「价格高点什么时候出现」的事后代理</b>，不能事前用。盘中可这样用：价格创新高而持仓仍高企 → 警惕冲高回落；价格创新高但持仓已大幅萎缩 → 趋势已走到末段。
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+          {Object.entries(oi.lifecycle.byOil).map(([oil, b]) => (
+            <div key={oil} className="rounded-lg p-3 text-xs" style={{ background: "var(--card-hover)" }}>
+              <b>{oil}</b>（n={b.n}）：持仓同比 AUC <b>{b.auc}</b>，早顶组均值 <b style={{ color: RED }}>{pct(b.earlyAvg)}</b> / 晚顶组 <b style={{ color: GREEN }}>{pct(b.lateAvg)}</b>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-lg p-3 mt-4" style={{ background: "var(--card-hover)", borderLeft: "3px solid var(--primary)" }}>
+          <div className="text-sm font-bold mb-2">2705 持仓交叉验证</div>
+          <div className="text-xs space-y-1.5 leading-relaxed">
+            <p>
+              <b>豆油 Y2705：</b>当前持仓 {oi.forecast.Y2705.oi?.toLocaleString()}（{oi.forecast.Y2705.asof}），较 Y2605 同期 {oi.forecast.Y2705.prevOi?.toLocaleString()} <b style={{ color: colorOf(oi.forecast.Y2705.yoy ?? 0) }}>{pct(oi.forecast.Y2705.yoy ?? 0)}</b> → 持仓信号 <b>{oi.forecast.combined.Y2705.oiSignal}</b>；价格分位信号 <b>{oi.forecast.combined.Y2705.priceSignal}</b>。两信号冲突，但 −2.7% 接近零轴、属弱信号，<b style={{ color: t.fg }}>不足以推翻高分位的早顶倾向</b>。
+            </p>
+            <p>
+              <b>棕榈油 P2705：</b>当前持仓 {oi.forecast.P2705.oi?.toLocaleString()}，较 P2605 同期 {oi.forecast.P2705.prevOi?.toLocaleString()} <b style={{ color: RED }}>{pct(oi.forecast.P2705.yoy ?? 0)}</b> → 持仓信号 <b style={{ color: RED }}>{oi.forecast.combined.P2705.oiSignal}</b>，与价格分位信号 <b>{oi.forecast.combined.P2705.priceSignal}</b> 一致——<b style={{ color: RED }}>棕榈油早顶判断被独立信号强化</b>。
+            </p>
+            <p className="text-[11px] text-[var(--muted)]">持仓代理同样用 11 月中旬口径，12 月窗口开启后需用真实起点持仓复核。{oi.forecast.combined.note}</p>
+          </div>
+        </div>
+      </Card>
+
       {/* ============ 第四步：预测 2705 ============ */}
       <Card tag="最终预测" title="2705 合约形态预判" desc={`05 合约窗口 12 月才开始，当前用 11 月中旬价作起点代理。历史校准 Spearman ρ：豆油 ${fc.calibration.soyRho}、棕榈油 ${fc.calibration.palmRho}——代理价分位排序几乎无损。`}>
         <QuantileBar
@@ -368,6 +503,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
           <p className="text-xs text-[var(--muted)] leading-relaxed">
             Y2705 分位 {fc.contracts.Y2705.quantile}%、P2705 分位 {fc.contracts.P2705.quantile}% 均在高位区（&gt;65%），按「高位启动 82% 早顶」规则倾向早顶；
             叠加 05 合约自 {fc.structural.noLateSince} 年起的牛熊体制切换（连续四年无晚顶），判断两个 2705 大概率冲高后回落、结尾跌破或仅略高于期初。<b style={{ color: t.fg }}>采购上不宜持有到末段，冲高即分批锁价。</b>
+            持仓二次验证：棕榈油持仓同比 {pct(oi.forecast.P2705.yoy ?? 0)}（增量）与价格分位同向、早顶判断加强；豆油持仓同比 {pct(oi.forecast.Y2705.yoy ?? 0)} 接近零轴、与高分位信号轻微冲突，<b style={{ color: t.fg }}>豆油留待 12 月真实起点复核，棕榈油先按早顶执行</b>。
           </p>
         </div>
       </Card>
@@ -378,18 +514,19 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
           <p><b style={{ color: t.fg }}>形态定义：</b>早顶=峰值出现在窗口前 50%，晚顶=后 20%，中间=其余；峰值=窗口内最高价 high，末值=窗口最后交易日收盘。归一化基准为窗口起始交易日收盘=100。</p>
           <p><b style={{ color: t.fg }}>期初价分位：</b>合约期初绝对价在同品种、同月份合约 7–8 年样本中的百分位。这是相对小样本，历史窗口变化会改变数值。</p>
           <p><b style={{ color: t.fg }}>预判局限：</b>期初分位规则留一交叉验证命中率仅约 59%（多数类基线 51%），是概率倾向而非确定性规则；有反例，见上表。2705 用 11 月价代理，<b style={{ color: t.fg }}>{fc.caveat}</b></p>
+          <p><b style={{ color: t.fg }}>持仓口径：</b>持仓量取新浪日线 p 字段（未平仓合约手数），窗口逐日与价格对齐。持仓同比 = 本交割年合约窗口首日持仓 ÷ 上一交割年同月份合约窗口首日持仓 − 1；2705 用 11 月中旬作代理。高点持仓水位为事后指标（依赖峰值日期），不可事前预判；持仓同比虽有置换检验支撑，但留一命中仅略高于多数类基线，且与年份秩相关 ρ={oi.lifecycle.yearRho}，存在体制混淆。</p>
           <p><b style={{ color: t.fg }}>数据边界：</b>期货主力合约价格，非现货采购价；未叠加基差、升贴水、运费、汇率。样本仅 7–8 年，其中约 3 年为极端牛市（2020–2022）。适合判断时间节奏与相对强弱，不宜单独决定采购量或锁价点位。</p>
           <p><b style={{ color: t.fg }}>自动更新：</b>历史规律由豆油/棕榈油分析数据复算；2705 实时价来自新浪财经。每个交易日自动重算，数据时间：{data.fetch_date}。</p>
         </div>
       </Card>
 
       {/* ============ 附录：全样本 ============ */}
-      <Card tag="附录" title={`全部 ${allRows.length} 个合约年样本`} desc="可核对的逐条明细：按品种/合约/交割年列出峰位、形态、峰涨幅、末涨幅、回落、期初价分位。">
+      <Card tag="附录" title={`全部 ${allRows.length} 个合约年样本`} desc="可核对的逐条明细：按品种/合约/交割年列出峰位、形态、峰涨幅、末涨幅、回落、期初价分位、高点持仓与持仓同比。">
         <div className="max-h-[420px] overflow-auto">
           <table className="w-full text-xs">
             <thead className="sticky top-0" style={{ background: "var(--card)" }}>
               <tr className="text-[var(--muted)] border-b border-[var(--border)]">
-                {["品种", "合约", "交割年", "峰位", "形态", "峰涨幅", "末涨幅", "回落", "期初分位"].map((h, i) => <th key={h} className={`p-2 font-medium whitespace-nowrap ${i < 3 ? "text-left" : "text-center"}`}>{h}</th>)}
+                {["品种", "合约", "交割年", "峰位", "形态", "峰涨幅", "末涨幅", "回落", "期初分位", "高点持仓", "持仓同比"].map((h, i) => <th key={h} className={`p-2 font-medium whitespace-nowrap ${i < 3 ? "text-left" : "text-center"}`}>{h}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -404,6 +541,8 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
                   <td className="p-2 text-center font-semibold" style={{ color: colorOf(r.end) }}>{pct(r.end)}</td>
                   <td className="p-2 text-center">{r.fall}</td>
                   <td className="p-2 text-center">{r.startPct == null ? "—" : r.startPct + "%"}</td>
+                  <td className="p-2 text-center" style={{ color: r.oiAtPeak == null ? undefined : colorOf(r.oiAtPeak) }}>{r.oiAtPeak == null ? "—" : pct(r.oiAtPeak)}</td>
+                  <td className="p-2 text-center" style={{ color: r.oiYoy == null ? undefined : colorOf(-r.oiYoy) }}>{r.oiYoy == null ? "—" : pct(r.oiYoy)}</td>
                 </tr>
               ))}
             </tbody>
