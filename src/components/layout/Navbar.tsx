@@ -63,6 +63,12 @@ export function Navbar({ user }: NavbarProps) {
                         </Link>
 
                         <Link
+                            href="/database"
+                            className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+                        >
+                            研究数据库
+                        </Link>
+                        <Link
                             href="/analysis/oil-shape-research"
                             className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
                         >
@@ -149,6 +155,13 @@ export function Navbar({ user }: NavbarProps) {
                                 onClick={() => setIsOpen(false)}
                             >
                                 棕榈油主力分析
+                            </Link>
+                            <Link
+                                href="/database"
+                                className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
+                                onClick={() => setIsOpen(false)}
+                            >
+                                研究数据库
                             </Link>
                             <Link
                                 href="/analysis/oil-shape-research"

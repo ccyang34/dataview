@@ -1,0 +1,357 @@
+{
+  "database": "oil-research.sqlite",
+  "title": "油脂研究数据库",
+  "description": "豆油(Y)、棕榈油(P) 主力 01/05/09 合约历史行情、持仓与形态研究复算结果的单一 SQLite 数据库。与网页报告同源，由脚本生成。",
+  "generated_at": "2026-11-20T03:26:35.513Z",
+  "sources": [
+    {
+      "name": "豆油主力分析",
+      "file": "soybean-oil-y01.json",
+      "updated_at": "2026-11-20T02:49:21.899Z",
+      "source": "新浪财经期货日线 JSONP (InnerFuturesNewService.getDailyKLine) · 大连商品交易所内盘豆油(Y)"
+    },
+    {
+      "name": "棕榈油主力分析",
+      "file": "palm-oil-p01.json",
+      "updated_at": "2026-11-20T02:49:23.678Z",
+      "source": "新浪财经期货日线 JSONP (InnerFuturesNewService.getDailyKLine) · 大连商品交易所内盘棕榈油(P)"
+    },
+    {
+      "name": "油脂形态研究",
+      "file": "oil-shape-research.json",
+      "updated_at": "2026-11-20T03:02:10.584Z",
+      "source": "形态规律由豆油/棕榈油主力分析数据复算；2705 实时价来自新浪财经期货日线 JSONP"
+    }
+  ],
+  "window_rule": "对称主力期: 01合约8月~次年1月; 05合约12月~次年5月; 09合约4月~9月",
+  "tables": [
+    {
+      "name": "dataset",
+      "comment": "数据源清单：三份输入 JSON 的来源与更新时间",
+      "columns": [
+        "id:TEXT",
+        "name:TEXT",
+        "file:TEXT",
+        "source:TEXT",
+        "updated_at:TEXT",
+        "window_rule:TEXT"
+      ],
+      "rows": 3
+    },
+    {
+      "name": "contracts",
+      "comment": "合约主表：每个合约年一行（44 行），含窗口、价格、峰位、形态标签与持仓特征",
+      "columns": [
+        "symbol:TEXT",
+        "oil:TEXT",
+        "contract:TEXT",
+        "deliver_year:INTEGER",
+        "win_start:TEXT",
+        "win_end:TEXT",
+        "start_date:TEXT",
+        "end_date:TEXT",
+        "start_price:REAL",
+        "end_price:REAL",
+        "peak_date:TEXT",
+        "peak_price:REAL",
+        "peak_days:INTEGER",
+        "bars:INTEGER",
+        "nodes:INTEGER",
+        "win_pct:REAL",
+        "win_daily_pct:REAL",
+        "peak_pct:REAL",
+        "start_label:TEXT",
+        "peak_label:TEXT",
+        "tag:TEXT",
+        "pos:INTEGER",
+        "peak:REAL",
+        "end:REAL",
+        "fall:REAL",
+        "start_pct:REAL",
+        "oi_at_peak:REAL",
+        "oi_yoy:REAL",
+        "is_partial:INTEGER"
+      ],
+      "rows": 44
+    },
+    {
+      "name": "daily_quotes",
+      "comment": "逐日行情明细：合约 × 交易日的收盘价、归一化价、持仓量（4776 行）",
+      "columns": [
+        "symbol:TEXT",
+        "oil:TEXT",
+        "contract:TEXT",
+        "deliver_year:INTEGER",
+        "trade_date:TEXT",
+        "progress_idx:INTEGER",
+        "md:TEXT",
+        "close:REAL",
+        "norm:REAL",
+        "oi:REAL"
+      ],
+      "rows": 4776
+    },
+    {
+      "name": "monthly_nodes",
+      "comment": "月末 6 节点：归一化首月末=100 的月度锚点",
+      "columns": [
+        "symbol:TEXT",
+        "oil:TEXT",
+        "contract:TEXT",
+        "node_idx:INTEGER",
+        "date:TEXT",
+        "close:REAL",
+        "norm:REAL"
+      ],
+      "rows": 264
+    },
+    {
+      "name": "avg_paths",
+      "comment": "平均归一化路径：各品种各合约的月末节点与逐日等权平均",
+      "columns": [
+        "oil:TEXT",
+        "contract:TEXT",
+        "kind:TEXT",
+        "idx:INTEGER",
+        "value:REAL"
+      ],
+      "rows": 762
+    },
+    {
+      "name": "shape_stats",
+      "comment": "形态验证汇总指标（先高后低是否普遍）",
+      "columns": [
+        "metric:TEXT",
+        "value:REAL",
+        "unit:TEXT"
+      ],
+      "rows": 5
+    },
+    {
+      "name": "shape_groups",
+      "comment": "形态分组：早顶/晚顶/中间三组的平均表现",
+      "columns": [
+        "grp:TEXT",
+        "count:INTEGER",
+        "share:REAL",
+        "avg_pos:REAL",
+        "avg_peak:REAL",
+        "avg_end:REAL",
+        "avg_fall:REAL",
+        "end_above:INTEGER",
+        "end_below:INTEGER"
+      ],
+      "rows": 3
+    },
+    {
+      "name": "signal_auc",
+      "comment": "信号判别力：各特征区分早/晚顶的 AUC（0.5=抛硬币）",
+      "columns": [
+        "feature:TEXT",
+        "name:TEXT",
+        "auc:REAL",
+        "early_mean:REAL",
+        "late_mean:REAL",
+        "category:TEXT"
+      ],
+      "rows": 21
+    },
+    {
+      "name": "quantile_bands",
+      "comment": "期初价历史分位分档 → 晚顶率与末涨",
+      "columns": [
+        "label:TEXT",
+        "n:INTEGER",
+        "late:INTEGER",
+        "early:INTEGER",
+        "late_rate:REAL",
+        "avg_end:REAL"
+      ],
+      "rows": 3
+    },
+    {
+      "name": "quantile_by_oil",
+      "comment": "期初价分位信号分品种验证",
+      "columns": [
+        "oil:TEXT",
+        "low_n:INTEGER",
+        "low_late:INTEGER",
+        "low_late_rate:REAL",
+        "high_n:INTEGER",
+        "high_late:INTEGER",
+        "high_late_rate:REAL"
+      ],
+      "rows": 2
+    },
+    {
+      "name": "signal_tests",
+      "comment": "统计检验汇总：置换检验、留一验证与基线",
+      "columns": [
+        "test:TEXT",
+        "stat:TEXT",
+        "value:REAL",
+        "note:TEXT"
+      ],
+      "rows": 7
+    },
+    {
+      "name": "month_jump",
+      "comment": "09 合约 7 月末→8 月末涨幅（逐年，豆油/棕榈油）",
+      "columns": [
+        "year:INTEGER",
+        "soy_pct:REAL",
+        "palm_pct:REAL"
+      ],
+      "rows": 7
+    },
+    {
+      "name": "forecast_2705",
+      "comment": "2705 合约形态预判：现价、历史分位、持仓代理与结论",
+      "columns": [
+        "symbol:TEXT",
+        "price:REAL",
+        "high:REAL",
+        "low:REAL",
+        "asof:TEXT",
+        "quantile:INTEGER",
+        "off_high:REAL",
+        "verdict:TEXT",
+        "oi:REAL",
+        "oi_prev:REAL",
+        "oi_yoy:REAL",
+        "oi_signal:TEXT",
+        "price_signal:TEXT"
+      ],
+      "rows": 2
+    },
+    {
+      "name": "forecast_proxies",
+      "comment": "2705 历史校准价：往年同期 05 合约价格",
+      "columns": [
+        "symbol:TEXT",
+        "proxy_year:TEXT",
+        "proxy_price:REAL"
+      ],
+      "rows": 14
+    },
+    {
+      "name": "structural_evolution",
+      "comment": "05 合约形态演变（逐年早晚顶结构，体制切换依据）",
+      "columns": [
+        "oil:TEXT",
+        "year:INTEGER",
+        "tag:TEXT",
+        "pos:INTEGER",
+        "end:REAL"
+      ],
+      "rows": 14
+    },
+    {
+      "name": "oi_lifecycle_curve",
+      "comment": "持仓生命周期曲线：窗口进度 0-100% 的平均持仓水位(起点=100)",
+      "columns": [
+        "progress:INTEGER",
+        "all:REAL",
+        "early:REAL",
+        "late:REAL"
+      ],
+      "rows": 21
+    },
+    {
+      "name": "oi_matrix",
+      "comment": "双信号矩阵：期初价分位 × 期初持仓同比 → 晚顶率与末涨",
+      "columns": [
+        "price_band:TEXT",
+        "oi_band:TEXT",
+        "n:INTEGER",
+        "late:INTEGER",
+        "early:INTEGER",
+        "late_rate:REAL",
+        "avg_end:REAL",
+        "symbols:TEXT"
+      ],
+      "rows": 4
+    },
+    {
+      "name": "oi_caliber",
+      "comment": "两个「历史同期」口径对比：同比 vs 历史分位",
+      "columns": [
+        "label:TEXT",
+        "early_n:INTEGER",
+        "early_avg:REAL",
+        "early_pos:INTEGER",
+        "late_n:INTEGER",
+        "late_avg:REAL",
+        "late_pos:INTEGER",
+        "auc:REAL",
+        "verdict:TEXT"
+      ],
+      "rows": 2
+    },
+    {
+      "name": "oi_caliber_buckets",
+      "comment": "期初持仓历史分位分档 → 早顶率（分档不单调）",
+      "columns": [
+        "label:TEXT",
+        "n:INTEGER",
+        "early:INTEGER",
+        "early_rate:REAL"
+      ],
+      "rows": 4
+    },
+    {
+      "name": "oi_sametime",
+      "comment": "顶部同日同比 vs 窗口起点同比（同刻口径为伪信号）",
+      "columns": [
+        "method:TEXT",
+        "early_n:INTEGER",
+        "early_avg:REAL",
+        "early_pos:INTEGER",
+        "late_n:INTEGER",
+        "late_avg:REAL",
+        "late_pos:INTEGER",
+        "auc:REAL"
+      ],
+      "rows": 2
+    },
+    {
+      "name": "oi_anomalies",
+      "comment": "晚顶组同刻同比>100% 异常样本（分母坍缩演示）",
+      "columns": [
+        "symbol:TEXT",
+        "peak_date:TEXT",
+        "oi_now:REAL",
+        "oi_prev:REAL",
+        "yoy:REAL",
+        "self_peak_pct:REAL"
+      ],
+      "rows": 4
+    },
+    {
+      "name": "oi_peak_position",
+      "comment": "持仓峰进度与持仓峰-价格峰先后（早/晚顶对比）",
+      "columns": [
+        "grp:TEXT",
+        "n:INTEGER",
+        "oi_prog_avg:REAL",
+        "oi_prog_med:REAL",
+        "price_prog_avg:REAL",
+        "lag_avg:REAL",
+        "lag_later:INTEGER"
+      ],
+      "rows": 2
+    },
+    {
+      "name": "exceptions",
+      "comment": "例外样本：与整体规律相反的合约（用于稳健性核查）",
+      "columns": [
+        "symbol:TEXT",
+        "quantile:REAL",
+        "tag:TEXT",
+        "peak:REAL",
+        "end:REAL"
+      ],
+      "rows": 5
+    }
+  ]
+}
