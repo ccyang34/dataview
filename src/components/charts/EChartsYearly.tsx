@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import ReactECharts from "echarts-for-react";
-import * as echarts from "echarts";
 
 export interface YearlyDataPoint {
     date: string; // 原始日期 YYYY-MM-DD
@@ -16,273 +15,183 @@ interface YearlyComparisonChartProps {
     height?: number;
 }
 
-// Year colors
-const YEAR_COLORS: Record<number, string> = {
-    2026: '#E91E63', // Pink
-    2025: '#2962FF', // Blue
-    2024: '#00BCD4', // Cyan
-    2023: '#4CAF50', // Green
-    2022: '#FF9800', // Orange
-    2021: '#9C27B0', // Purple
-    2020: '#795548', // Brown
-    2019: '#607D8B', // Blue Grey
-};
+/** 协调年度色板（深浅主题通用，相邻年份色相拉开） */
+const YEAR_COLORS = [
+    "#8B5CF6", // 紫
+    "#3B82F6", // 蓝
+    "#10B981", // 绿
+    "#F59E0B", // 琥珀
+    "#EC4899", // 粉
+    "#0EA5E9", // 天蓝
+    "#EAB308", // 黄
+    "#6366F1", // 靛
+    "#14B8A6", // 青
+    "#F97316", // 橙
+];
+const colorOf = (idx: number) => YEAR_COLORS[idx % YEAR_COLORS.length];
 
-const getYearColor = (year: number): string => {
-    if (YEAR_COLORS[year]) return YEAR_COLORS[year];
-    const hue = ((year * 137) % 360);
-    return `hsl(${hue}, 70%, 50%)`;
-};
+/** 读取 CSS 变量（适配深浅主题） */
+function useThemeColors() {
+    const [t, setT] = useState({ fg: "#0F172A", muted: "#64748B", border: "#E2E8F0", card: "#FFFFFF" });
+    useEffect(() => {
+        const read = () => {
+            const cs = getComputedStyle(document.documentElement);
+            setT({
+                fg: cs.getPropertyValue("--foreground").trim() || "#0F172A",
+                muted: cs.getPropertyValue("--muted").trim() || "#64748B",
+                border: cs.getPropertyValue("--border").trim() || "#E2E8F0",
+                card: cs.getPropertyValue("--card").trim() || "#FFFFFF",
+            });
+        };
+        read();
+        window.addEventListener("resize", read);
+        const obs = new MutationObserver(read);
+        obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+        return () => { window.removeEventListener("resize", read); obs.disconnect(); };
+    }, []);
+    return t;
+}
 
-const getMonthDay = (dateStr: string): string => {
-    const parts = dateStr.split('-');
-    if (parts.length >= 3) return `${parts[1]}-${parts[2]}`;
-    return dateStr;
+const getMonthDay = (dateStr: string) => {
+    const parts = dateStr.split("-");
+    return parts.length >= 3 ? `${parts[1]}-${parts[2]}` : dateStr;
 };
-
-const getYear = (dateStr: string): number => {
-    return parseInt(dateStr.split('-')[0], 10);
-};
+const getYear = (dateStr: string) => parseInt(dateStr.split("-")[0], 10);
 
 export function EChartsYearly({
     data,
     title = "年度复合对比图",
     valueLabel = "数值",
-    height = 400,
+    height = 360,
 }: YearlyComparisonChartProps) {
+    const t = useThemeColors();
     const [isMobile, setIsMobile] = useState(false);
-    const [showAll, setShowAll] = useState(false); // Default show recent 6 years
+    const [showAll, setShowAll] = useState(false);
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
         checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
+        window.addEventListener("resize", checkMobile);
+        return () => window.removeEventListener("resize", checkMobile);
     }, []);
 
-    if (!data || data.length === 0) {
-        return <div className="text-center py-20 text-[var(--muted)]">暂无数据</div>;
-    }
-
-    // 1. Prepare Data
-    const { years, chartData, displayYears, latestValues, minValue, maxValue, avgValue, groupedByMonthDay } = useMemo(() => {
-        const uniqueYears = [...new Set(data.map(d => getYear(d.date)))].sort((a, b) => b - a);
-        const displayYears = showAll ? uniqueYears : uniqueYears.slice(0, 6);
-
-        // Filter data based on visibility
-        const filteredData = data.filter(d => displayYears.includes(getYear(d.date)));
-
-        // Group by MonthDay
-        const groupedByMonthDay: Record<string, Record<number, number>> = {};
-        const allValues: number[] = [];
+    const stats = useMemo(() => {
+        const sorted = [...data].sort((a, b) => a.date.localeCompare(b.date));
+        const years = [...new Set(sorted.map(d => getYear(d.date)))].sort((a, b) => b - a);
+        const displayYears = showAll ? years : years.slice(0, 6);
+        const grouped: Record<string, Record<number, number>> = {};
         const latestValues: Record<number, number> = {};
-
-        filteredData.forEach(item => {
+        const allValues: number[] = [];
+        for (const item of sorted) {
             const md = getMonthDay(item.date);
             const y = getYear(item.date);
-            if (!groupedByMonthDay[md]) groupedByMonthDay[md] = {};
-            groupedByMonthDay[md][y] = item.value;
+            if (!grouped[md]) grouped[md] = {};
+            grouped[md][y] = item.value;
             allValues.push(item.value);
-
-            // Track latest value per year
-            // Assuming data is somewhat ordered or we just overwrite
-            // But better logic: find the one with max date per year
-            // Simple overwrite works if sorted by date, but safer to check
-            // Actually 'data' might not be sorted by date? Usually is from DB.
-            latestValues[y] = item.value;
-        });
-
-        // X-Axis Category (All unique month-days sorted)
-        // To be safe, generate a full 365 days list or just use what exists?
-        // Recharts version used exists. ECharts category axis works same.
-        const chartDataKeys = Object.keys(groupedByMonthDay).sort();
-
-        // Stats
-        const maxV = allValues.length ? Math.max(...allValues) : 0;
-        const minV = allValues.length ? Math.min(...allValues) : 0;
-        const avgV = allValues.length ? allValues.reduce((a, b) => a + b, 0) / allValues.length : 0;
-
+            latestValues[y] = item.value; // 已按日期排序，最后一条即年内最新
+        }
+        const keys = Object.keys(grouped).sort();
         return {
-            years: uniqueYears,
-            displayYears,
-            chartData: chartDataKeys, // X Axis Labels
-            groupedByMonthDay,
-            latestValues,
-            maxValue: maxV,
-            minValue: minV,
-            avgValue: avgV
+            years, displayYears, keys, grouped, latestValues,
+            max: allValues.length ? Math.max(...allValues) : 0,
+            min: allValues.length ? Math.min(...allValues) : 0,
+            avg: allValues.length ? allValues.reduce((a, b) => a + b, 0) / allValues.length : 0,
         };
     }, [data, showAll]);
 
-    // 2. Generate ECharts Option
-    const getOption = () => {
-        const series = displayYears.map((year, index) => {
-            // Map x-axis labels to values for this year
-            const seriesData = chartData.map(md => {
-                const val = years.includes(year) ? groupedByMonthDay[md]?.[year] : undefined;
-                return val; // ECharts handles undefined as gap
-            });
+    if (!data || data.length === 0) {
+        return <div className="text-center py-12 text-[var(--muted)] text-sm">暂无数据</div>;
+    }
 
-            return {
-                name: year.toString(),
-                type: 'line',
-                data: seriesData,
-                symbol: 'none',
-                connectNulls: true, // Handle missing days
-                lineStyle: {
-                    color: getYearColor(year),
-                    width: index === 0 ? 3 : 1.5 // Highlight most recent year
-                },
-                itemStyle: { color: getYearColor(year) },
-                // Show only first few in legend to save space? Standard legend handles scrolling
-            };
-        });
+    const { years, displayYears, keys, grouped, latestValues, max, min, avg } = stats;
+    const colorFor = (year: number) => colorOf(years.indexOf(year) < 0 ? 0 : years.indexOf(year));
 
-        return {
-            title: { show: false }, // Using custom header
-            tooltip: {
-                trigger: 'axis',
-                backgroundColor: 'var(--card)',
-                borderColor: 'var(--border)',
-                textStyle: { color: 'var(--foreground)', fontSize: 12 },
-                formatter: (params: any) => {
-                    let html = `<div>日期: ${params[0].axisValue}</div>`;
-                    // Sort by year descending for tooltip
-                    const sortedParams = [...params].sort((a, b) => parseInt(b.seriesName) - parseInt(a.seriesName));
-
-                    sortedParams.forEach((p: any) => {
-                        if (p.value !== undefined) {
-                            html += `<div style="display:flex;justify-content:space-between;min-width:120px;gap:8px">
-                                <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${p.color};margin-right:4px"></span>${p.seriesName}</span>
-                                <strong>${p.value.toFixed(0)}</strong>
-                             </div>`;
-                        }
-                    });
-                    return html;
-                }
+    const option = {
+        backgroundColor: "transparent",
+        textStyle: { color: t.fg },
+        tooltip: {
+            trigger: "axis", backgroundColor: t.card, borderColor: t.border, borderWidth: 1,
+            textStyle: { color: t.fg, fontSize: 11 }, confine: true, padding: [6, 10],
+            extraCssText: "box-shadow:0 6px 20px rgba(0,0,0,.12);border-radius:8px;",
+            axisPointer: { type: "line", lineStyle: { color: t.muted, type: "dashed" } },
+            formatter: (params: any) => {
+                let html = `<div style="font-weight:600;margin-bottom:4px">${params[0]?.axisValue || ""}</div>`;
+                [...params].sort((a: any, b: any) => parseInt(b.seriesName) - parseInt(a.seriesName)).forEach((p: any) => {
+                    if (p.value == null) return;
+                    html += `<div style="display:flex;justify-content:space-between;gap:16px;line-height:1.7">
+                        <span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${p.color};margin-right:5px"></span>${p.seriesName}</span>
+                        <strong style="font-variant-numeric:tabular-nums">${Number(p.value).toFixed(0)}</strong></div>`;
+                });
+                return html;
             },
-            legend: {
-                data: [...displayYears].reverse().map(y => y.toString()),
-                top: 0,
-                // type: 'scroll', // User requested show all (wrap)
-                width: '100%',
-                itemGap: 10,
-                textStyle: { fontSize: 10 },
-                pageTextStyle: { color: 'var(--foreground)' }
-            },
-            grid: {
-                left: isMobile ? '0%' : '5%',
-                right: isMobile ? '2%' : '5%',
-                top: isMobile ? 65 : 40, // Increased top margin for multi-line legend
-                bottom: isMobile ? 25 : '8%',
-                containLabel: true
-            },
-            xAxis: {
-                type: 'category',
-                data: chartData,
-                axisLabel: {
-                    fontSize: isMobile ? 9 : 11,
-                    color: 'var(--muted)'
-                },
-                axisLine: { lineStyle: { color: 'var(--border)' } }
-            },
-            yAxis: {
-                type: 'value',
-                scale: true,
-                axisLabel: {
-                    fontSize: isMobile ? 9 : 11,
-                    color: 'var(--muted)'
-                },
-                splitLine: { lineStyle: { type: 'dashed', opacity: 0.3 } }
-            },
-            series: [
-                ...series,
-                // Mean Line (MarkLine)
-                {
-                    type: 'line',
-                    markLine: {
-                        silent: true,
-                        data: [{ yAxis: avgValue }],
-                        label: { formatter: `均值: ${avgValue.toFixed(0)}`, position: 'insideEndTop', color: 'gray' },
-                        lineStyle: { color: 'gray', type: 'dashed' },
-                        symbol: 'none'
-                    }
-                },
-                // Zero Line
-                {
-                    type: 'line',
-                    markLine: {
-                        silent: true,
-                        data: [{ yAxis: 0 }],
-                        label: { show: false },
-                        lineStyle: { color: '#EF4444', type: 'dashed' },
-                        symbol: 'none'
-                    }
-                }
-            ]
-        };
+        },
+        legend: {
+            data: [...displayYears].reverse().map(y => y.toString()),
+            top: 0, icon: "roundRect", itemWidth: 12, itemHeight: 7, itemGap: 12,
+            textStyle: { fontSize: 11, color: t.muted },
+        },
+        grid: { left: 6, right: 10, top: 34, bottom: 26, containLabel: true },
+        xAxis: {
+            type: "category", data: keys, boundaryGap: false,
+            axisLabel: { color: t.muted, fontSize: 10, hideOverlap: true },
+            axisLine: { lineStyle: { color: t.border } }, axisTick: { show: false },
+        },
+        yAxis: {
+            type: "value", scale: true,
+            axisLabel: { color: t.muted, fontSize: 10 },
+            splitLine: { lineStyle: { type: "dashed", color: t.border, opacity: .7 } },
+            axisLine: { show: false },
+        },
+        series: [
+            ...displayYears.map((year, idx) => ({
+                name: year.toString(), type: "line", symbol: "none", smooth: true,
+                data: keys.map(md => grouped[md]?.[year]),
+                lineStyle: { color: colorFor(year), width: idx === 0 ? 2.4 : 1.6, opacity: idx === 0 ? 1 : .9 },
+                itemStyle: { color: colorFor(year) },
+                emphasis: { lineStyle: { width: 3 } },
+                markLine: idx === 0 ? {
+                    silent: true, symbol: "none",
+                    data: [{ yAxis: avg, label: { formatter: `均值 ${avg.toFixed(0)}`, position: "insideEndTop", color: t.muted, fontSize: 10 },
+                        lineStyle: { color: t.muted, type: "dashed", opacity: .6 } }],
+                } : undefined,
+            })),
+        ],
     };
 
     return (
-        <div className="space-y-4">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                <div className="flex items-center gap-3">
-                    <div>
-                        <h3 className="text-lg font-semibold">{title}</h3>
-                        <p className="text-xs text-[var(--muted)]">
-                            显示 {displayYears.length} / {years.length} 个年份
-                        </p>
-                    </div>
+        <div className="card p-3 sm:p-4">
+            <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
+                <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                        <span className="w-1 h-4 rounded" style={{ backgroundColor: colorFor(displayYears[0]) }} />
+                        {title}
+                    </h3>
                     <button
                         onClick={() => setShowAll(!showAll)}
-                        className={`px-3 py-1 text-xs rounded-md border transition-colors cursor-pointer ${showAll
-                            ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
-                            : 'bg-[var(--card)] text-[var(--muted)] border-[var(--border)] hover:border-[var(--primary)]'
-                            }`}
+                        className={`px-2 py-0.5 text-[10px] rounded-md border transition-colors cursor-pointer ${showAll
+                            ? "bg-[var(--primary)] text-white border-[var(--primary)]"
+                            : "bg-[var(--card)] text-[var(--muted)] border-[var(--border)] hover:border-[var(--primary)]"}`}
                     >
-                        {showAll ? '显示近6年' : '显示全部'}
+                        {showAll ? "近6年" : "全部"}
                     </button>
                 </div>
-                {/* Year Tags */}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                     {displayYears.slice(0, 4).map(year => (
-                        <div
-                            key={year}
-                            className="text-xs px-2 py-1 rounded-md"
-                            style={{
-                                backgroundColor: `${getYearColor(year)}20`,
-                                color: getYearColor(year),
-                                border: `1px solid ${getYearColor(year)}40`
-                            }}
-                        >
-                            {year}: {latestValues[year]?.toFixed(0) ?? '-'}
-                        </div>
+                        <span key={year} className="text-[10px] px-2 py-0.5 rounded-md tabular-nums"
+                            style={{ backgroundColor: `${colorFor(year)}18`, color: colorFor(year), border: `1px solid ${colorFor(year)}38` }}>
+                            {year}: {latestValues[year] != null ? latestValues[year].toFixed(0) : "-"}
+                        </span>
                     ))}
                 </div>
             </div>
-
-            <div className="card p-0 pb-2 md:p-4">
-                <div style={{ height: isMobile ? 320 : height }} className="mb-6">
-                    <ReactECharts
-                        option={getOption()}
-                        style={{ height: '100%', width: '100%' }}
-                        opts={{ renderer: 'svg' }}
-                        notMerge={true}
-                    />
-                </div>
-                {/* Footer Stats */}
-                <div className="flex justify-between text-xs text-[var(--muted)] mt-2 mb-2 md:mt-3 border-t border-[var(--border)] pt-2 md:pt-3">
-                    <span>
-                        最高: <span className="text-green-600 font-medium">{maxValue.toFixed(0)}</span>
-                    </span>
-                    <span>
-                        均值: <span className="font-medium">{avgValue.toFixed(0)}</span>
-                    </span>
-                    <span>
-                        最低: <span className="text-red-600 font-medium">{minValue.toFixed(0)}</span>
-                    </span>
-                </div>
+            <div style={{ height: isMobile ? 280 : height }}>
+                <ReactECharts option={option} style={{ height: "100%", width: "100%" }}
+                    opts={{ renderer: "svg" }} notMerge={true} />
+            </div>
+            <div className="flex justify-between text-[11px] text-[var(--muted)] border-t border-[var(--border)] pt-2 mt-1 tabular-nums">
+                <span>{valueLabel}最高 <b className="text-[var(--foreground)] font-medium">{max.toFixed(0)}</b></span>
+                <span>均值 <b className="text-[var(--foreground)] font-medium">{avg.toFixed(0)}</b></span>
+                <span>{valueLabel}最低 <b className="text-[var(--foreground)] font-medium">{min.toFixed(0)}</b></span>
             </div>
         </div>
     );
