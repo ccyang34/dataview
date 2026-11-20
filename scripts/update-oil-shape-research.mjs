@@ -157,6 +157,108 @@ function attachOiFeatures(rows) {
   return ok;
 }
 
+/**
+ * 持仓深度辨析：把「早顶持仓是否高于历史同期」追问拆成三个可证伪的口径。
+ *  1. 同比（vs 上一交割年同合约起点） vs 历史分位（同品种同合约排位）——两个「同期」定义答案相反；
+ *  2. 顶部同一日历日 vs 去年同日的持仓同比——分母在临近交割时坍缩，属伪信号；
+ *  3. 持仓峰进度与持仓峰−价格峰先后——持仓峰节奏两组一致，差异来自价格峰位置。
+ */
+function oiDeepDive(rows) {
+  const pct0 = (v) => `${v > 0 ? "+" : ""}${Math.round(v)}%`;
+  const med = (a) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+  const aucEO = (rs, key) => {
+    const e = rs.filter((r) => r.tag === "早顶" && r[key] != null).map((r) => r[key]);
+    const l = rs.filter((r) => r.tag === "晚顶" && r[key] != null).map((r) => r[key]);
+    if (!e.length || !l.length) return null;
+    let w = 0;
+    for (const a of e) for (const b of l) w += a > b ? 1 : a === b ? 0.5 : 0;
+    return round(w / (e.length * l.length), 3);
+  };
+  const tagged = rows.filter((r) => (r.tag === "早顶" || r.tag === "晚顶") && r.oiStart != null);
+  const E0 = tagged.filter((r) => r.tag === "早顶"), L0 = tagged.filter((r) => r.tag === "晚顶");
+
+  // ---- 1. 两个「历史同期」口径 ----
+  const eY = E0.filter((r) => r.oiYoy != null), lY = L0.filter((r) => r.oiYoy != null);
+  const eP = E0.filter((r) => r.oiStartPct != null), lP = L0.filter((r) => r.oiStartPct != null);
+  const caliber = {
+    rows: [
+      { label: "A 期初持仓同比（vs 上一年同合约起点）",
+        early: { n: eY.length, avg: round(mean(eY.map((r) => r.oiYoy)), 1), pos: eY.filter((r) => r.oiYoy > 0).length },
+        late: { n: lY.length, avg: round(mean(lY.map((r) => r.oiYoy)), 1), pos: lY.filter((r) => r.oiYoy > 0).length },
+        auc: aucEO(tagged, "oiYoy"), verdict: "成立：早顶显著增仓启动" },
+      { label: "B 期初持仓历史分位（7–8 年排位）",
+        early: { n: eP.length, avg: round(mean(eP.map((r) => r.oiStartPct)), 1), pos: eP.filter((r) => r.oiStartPct >= 65).length },
+        late: { n: lP.length, avg: round(mean(lP.map((r) => r.oiStartPct)), 1), pos: lP.filter((r) => r.oiStartPct >= 65).length },
+        auc: aucEO(tagged, "oiStartPct"), verdict: "基本不成立：仅略偏高位" },
+    ],
+    posLabel: ["正增长数", "Q≥65% 数"],
+    buckets: [[0, 35, "Q<35%"], [35, 50, "Q35–50%"], [50, 65, "Q50–65%"], [65, 101, "Q≥65%"]].map(([lo, hi, label]) => {
+      const g = tagged.filter((r) => r.oiStartPct >= lo && r.oiStartPct < hi);
+      const e = g.filter((r) => r.tag === "早顶").length;
+      return { label, n: g.length, early: e, earlyRate: g.length ? round(e / g.length * 100, 0) : null };
+    }),
+    earlyDetail: E0.map((r) => `${r.sym} Q${r.oiStartPct}${r.oiYoy != null ? " 同比" + pct0(r.oiYoy) : ""}`),
+    note: "同为「历史同期」，同比口径成立（早顶相对去年增仓 20%），历史排位口径判别力 AUC≈0.56、分档还不单调，不能当稳定信号。",
+  };
+
+  // ---- 2. 顶部同日历日同比（证伪） ----
+  const same = [];
+  for (const [oil, d] of Object.entries(D)) {
+    for (const ct of CT) {
+      const dm = new Map(d.types[ct].daily.series.map((x) => [x.deliver_year, x]));
+      const sm = new Map(d.types[ct].series.map((x) => [x.deliver_year, x]));
+      for (const r of tagged.filter((x) => x.oil === oil && x.ct === ct)) {
+        const dd = dm.get(r.year), prev = dm.get(r.year - 1), s = sm.get(r.year);
+        if (!dd || !prev || !s || !s.peak_date) continue;
+        const mm = s.peak_date.slice(5);
+        const i = dd.dates.findIndex((x) => x && x.slice(5) === mm);
+        const j = prev.dates.findIndex((x) => x && x.slice(5) === mm);
+        if (i < 0 || j < 0 || !dd.oi[i] || !prev.oi[j]) continue;
+        const o0 = dd.oi.find((v) => v != null && v > 0);
+        same.push({ ...r, peakDate: s.peak_date.slice(5),
+          sameTimeYoy: round((dd.oi[i] / prev.oi[j] - 1) * 100, 1),
+          selfPeak: round(dd.oi[i] / o0 * 100, 0),
+          oiNow: dd.oi[i], oiPrev: prev.oi[j] });
+      }
+    }
+  }
+  const statCal = (key) => {
+    const e = same.filter((r) => r.tag === "早顶" && r[key] != null), l = same.filter((r) => r.tag === "晚顶" && r[key] != null);
+    return { early: { n: e.length, avg: round(mean(e.map((r) => r[key])), 1), pos: e.filter((r) => r[key] > 0).length },
+      late: { n: l.length, avg: round(mean(l.map((r) => r[key])), 1), pos: l.filter((r) => r[key] > 0).length },
+      auc: aucEO(same, key) };
+  };
+  const anomalies = same.filter((r) => r.tag === "晚顶" && r.sameTimeYoy > 100)
+    .sort((a, b) => b.sameTimeYoy - a.sameTimeYoy).slice(0, 6)
+    .map((r) => ({ sym: r.sym, peakDate: r.peakDate, oiNow: r.oiNow, oiPrev: r.oiPrev,
+      yoy: r.sameTimeYoy, selfPeak: r.selfPeak }));
+  const sameTime = {
+    n: same.length, earlyN: same.filter((r) => r.tag === "早顶").length,
+    lateN: same.filter((r) => r.tag === "晚顶").length,
+    sameTimeYoy: statCal("sameTimeYoy"), startYoy: statCal("oiYoy"),
+    anomalies, outlierCount: same.filter((r) => r.tag === "晚顶" && r.sameTimeYoy > 100).length,
+    note: "顶部同日历日对齐会把交割前持仓枯竭误读成巨量增仓：晚顶组均值 +322%（分母极小），AUC=0.500 完全失效。持仓对比必须在流动性可比的窗口起点做。",
+  };
+
+  // ---- 3. 持仓峰的节奏 ----
+  const pE = tagged.filter((r) => r.tag === "早顶" && r.oiPeakProg != null);
+  const pL = tagged.filter((r) => r.tag === "晚顶" && r.oiPeakProg != null);
+  const groupPeak = (g) => ({ n: g.length,
+    oiProgAvg: round(mean(g.map((r) => r.oiPeakProg)), 1), oiProgMed: med(g.map((r) => r.oiPeakProg)),
+    priceProgAvg: round(mean(g.map((r) => r.pos)), 1),
+    lagAvg: round(mean(g.map((r) => r.oiLag)), 1),
+    lagLater: g.filter((r) => r.oiLag > 0).length });
+  const peakPos = {
+    early: groupPeak(pE), late: groupPeak(pL),
+    aucOiProg: aucEO(tagged, "oiPeakProg"), aucLag: aucEO(tagged, "oiLag"),
+    note: "持仓峰进度两组都在窗口约 1/3 处（AUC≈0.50），不是早顶更早。真正拉开差距的是价格峰位置：晚顶价格峰拖到末端，持仓峰−价格峰差达 −64 个交易日，才造成「持仓先见顶」的观感。",
+  };
+
+  console.log("持仓深度辨析: 同比AUC", caliber.rows[0].auc, "分位AUC", caliber.rows[1].auc,
+    "| 同刻AUC", sameTime.sameTimeYoy.auc, "| 持仓峰进度AUC", peakPos.aucOiProg, "峰差AUC", peakPos.aucLag);
+  return { caliber, sameTime, peakPos };
+}
+
 /** 2705 当前持仓 vs 上一交割年 05 合约同期持仓（代理同比） */
 async function fetchOiForecast() {
   const out = {};
@@ -503,6 +605,7 @@ async function main() {
 
   // ---- 7. 持仓量二次分析 ----
   const oi = await oiAnalysis(rows);
+  const deep = oiDeepDive(rows);
   const sigOf = (y) => y == null ? "未知" : y < 0 ? "晚顶" : "早顶";
   oi.forecast.combined = {
     Y2705: { oiSignal: sigOf(oi.forecast.Y2705.yoy), priceSignal: forecast.contracts.Y2705.verdict },
@@ -539,6 +642,7 @@ async function main() {
     },
     shapeValidation, shapeGroups, earlyFeatures, quantileSignal, monthJump, forecast, paths,
     oiAnalysis: oi,
+    oiDeepDive: deep,
     allRows: rows.map((r) => ({ oil: r.oil, ct: r.ct, sym: r.sym, year: r.year, pos: r.pos, tag: r.tag,
       peak: r.peak, end: r.end, fall: r.fall, startPct: r.startPct == null ? null : round(r.startPct * 100, 0),
       oiAtPeak: r.oiAtPeak ?? null, oiYoy: r.oiYoy ?? null })),

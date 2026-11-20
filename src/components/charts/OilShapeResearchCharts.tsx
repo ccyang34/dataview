@@ -47,7 +47,7 @@ const colorOf = (v: number) => v >= 0 ? RED : GREEN;
 
 export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData }) {
   const t = useThemeColors();
-  const { shapeValidation: sv, shapeGroups: sg, earlyFeatures: ef, quantileSignal: qs, monthJump: mj, forecast: fc, paths, allRows, oiAnalysis: oi } = data;
+  const { shapeValidation: sv, shapeGroups: sg, earlyFeatures: ef, quantileSignal: qs, monthJump: mj, forecast: fc, paths, allRows, oiAnalysis: oi, oiDeepDive: dd } = data;
 
   const common = {
     backgroundColor: "transparent",
@@ -203,6 +203,30 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
     };
   }, [oi, ef, t]);
 
+  // 图8：持仓峰进度 vs 价格峰进度（早/晚顶对比）
+  const peakPosOption = useMemo(() => {
+    const pp = dd.peakPos;
+    return {
+      ...common,
+      tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, backgroundColor: t.card, borderColor: t.border, textStyle: { color: t.fg },
+        valueFormatter: (v: number) => Number(v).toFixed(1) + "%" },
+      legend: { data: ["持仓峰进度", "价格峰进度"], top: 0, textStyle: { color: t.muted, fontSize: 11 } },
+      grid: { left: 50, right: 18, top: 34, bottom: 26 },
+      xAxis: { type: "category", data: ["早顶型", "晚顶型"], axisLabel: { color: t.muted, fontSize: 11 }, axisLine: { lineStyle: { color: t.border } } },
+      yAxis: { type: "value", name: "窗口进度 %", min: 0, max: 108, nameTextStyle: { color: t.muted, fontSize: 10 }, axisLabel: { color: t.muted, fontSize: 10 }, splitLine: { lineStyle: { color: t.split } } },
+      series: [
+        { name: "持仓峰进度", type: "bar", barWidth: "24%",
+          data: [pp.early.oiProgAvg, pp.late.oiProgAvg],
+          itemStyle: { color: "#7F77DD", borderRadius: [3, 3, 0, 0] },
+          label: { show: true, position: "top", color: t.fg, fontSize: 10, formatter: (p: { value: number }) => p.value + "%" } },
+        { name: "价格峰进度", type: "bar", barWidth: "24%",
+          data: [pp.early.priceProgAvg, pp.late.priceProgAvg],
+          itemStyle: { color: RED, borderRadius: [3, 3, 0, 0] },
+          label: { show: true, position: "top", color: t.fg, fontSize: 10, formatter: (p: { value: number }) => p.value + "%" } },
+      ],
+    };
+  }, [dd, t]);
+
   // ---- 复刻用户称赞的 2705 分位预判图（纯 CSS） ----
   const QuantileBar = ({ label, price, q, note }: { label: string; price: number; q: number; note: string }) => (
     <div style={{ marginBottom: 22 }}>
@@ -245,6 +269,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
           <p><b>3. 早期走势无法预判</b>（AUC 全在 0.4–0.56 = 抛硬币），<b style={{ color: GREEN }}>但期初价的历史分位可以</b>：低位启动 80% 是晚顶，高位启动 82% 是早顶（置换检验 p={qs.permutation.pValue}）。</p>
           <p><b>4. 2705 预判：</b>Y2705（分位 {fc.contracts.Y2705.quantile}%）与 P2705（分位 {fc.contracts.P2705.quantile}%）均处高位 → <b style={{ color: RED }}>{fc.verdict}型</b>；叠加 05 合约自 {fc.structural.noLateSince} 年起连续无晚顶，倾向冲高回落、不宜持有到末段。</p>
           <p><b>5. 持仓量二次分析：</b>持仓曲线本身无预判力（早期 AUC≈0.5），<b style={{ color: GREEN }}>但期初持仓同比是独立的事前信号</b>（AUC {oi.lifecycle.earlyAuc.oiYoy}，置换检验 p={oi.lifecycle.permutation.pValue}）：同比缩量偏晚顶、增量偏早顶。与期初价分位叠加后，<b>低价+缩量 8/8 晚顶、高价+增量 7/9 早顶</b>；2705 上棕榈油两信号一致（持仓同比 {pct(oi.forecast.P2705.yoy ?? 0)}），豆油略冲突但信号弱（{pct(oi.forecast.Y2705.yoy ?? 0)}）。</p>
+          <p><b>6. 持仓口径辨析：</b>早顶「高于历史同期」只在<b>同比</b>口径成立（AUC {dd.caliber.rows[0].auc}）；<b>历史分位</b>口径判别力仅 {dd.caliber.rows[1].auc}、分档不单调。把「同期」对齐到顶部同日会因交割前持仓枯竭产生伪信号（AUC {dd.sameTime.sameTimeYoy.auc}）；持仓峰进度早/晚顶几乎相同（{dd.peakPos.early.oiProgAvg}% / {dd.peakPos.late.oiProgAvg}%），<b style={{ color: t.fg }}>早顶的持仓峰并未更早到来</b>。</p>
         </div>
       </div>
 
@@ -464,6 +489,124 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
         </div>
       </Card>
 
+      {/* ============ 持仓深度辨析①：两个「历史同期」 ============ */}
+      <Card tag="深度辨析 ①" title="早顶持仓真的高于历史同期吗？——两种口径，答案相反"
+        desc="「历史同期」有两种合理定义：相对上一交割年同合约（同比），或在同品种同合约 7–8 年样本中排位。两者结论不同，必须说清口径。">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead><tr className="text-[var(--muted)] border-b border-[var(--border)]">
+              {["口径", "早顶组", "晚顶组", "AUC（早>晚）", "结论"].map((h, i) => <th key={h} className={`p-2 font-medium whitespace-nowrap ${i === 0 || i === 4 ? "text-left" : "text-center"}`}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {dd.caliber.rows.map((row, i) => {
+                const fmt = (g: { n: number; avg: number; pos: number }) => i === 0
+                  ? `${pct(g.avg)} · 正增长 ${g.pos}/${g.n}`
+                  : `Q${Math.round(g.avg)}% · Q≥65% ${g.pos}/${g.n}`;
+                return (
+                  <tr key={row.label} className="border-b border-[var(--border)]">
+                    <td className="p-2 text-left font-semibold whitespace-nowrap">{row.label}</td>
+                    <td className="p-2 text-center whitespace-nowrap" style={{ color: RED }}>{fmt(row.early)}</td>
+                    <td className="p-2 text-center whitespace-nowrap" style={{ color: GREEN }}>{fmt(row.late)}</td>
+                    <td className="p-2 text-center font-bold whitespace-nowrap" style={{ color: row.auc >= 0.65 ? RED : row.auc <= 0.55 ? t.muted : t.fg }}>
+                      {row.auc}{row.auc >= 0.65 ? " ★" : ""}
+                    </td>
+                    <td className="p-2 text-left">{row.verdict}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-4">
+          <div className="text-sm font-semibold mb-2">按持仓历史分位分档 → 早顶率（分档不单调）</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {dd.caliber.buckets.map((b) => (
+              <div key={b.label} className="rounded-lg p-2.5 text-center" style={{ background: "var(--card-hover)" }}>
+                <div className="text-[11px] text-[var(--muted)]">{b.label}</div>
+                <div className="text-base font-bold mt-1" style={{ color: b.earlyRate != null && b.earlyRate >= 60 ? RED : b.earlyRate != null && b.earlyRate <= 35 ? GREEN : undefined }}>
+                  {b.earlyRate == null ? "—" : b.earlyRate + "%"}
+                </div>
+                <div className="text-[10px] text-[var(--muted)]">早顶 {b.early}/{b.n}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <details className="mt-3 text-xs">
+          <summary className="cursor-pointer text-[var(--muted)]">展开 {dd.caliber.earlyDetail.length} 个早顶合约的持仓分位 / 同比明细</summary>
+          <div className="mt-2 leading-relaxed" style={{ color: t.fg }}>{dd.caliber.earlyDetail.join("　|　")}</div>
+        </details>
+        <p className="text-[11px] text-[var(--muted)] mt-3 leading-relaxed">
+          {dd.caliber.note} 典型增仓案例 Y2401 +93%、Y2409 +102%、P2505 +44%、P2701 +43%；但也有反例 Y2301 −15%、P2601 −25%——<b style={{ color: t.fg }}>是概率倾向，不是铁律</b>。
+        </p>
+      </Card>
+
+      {/* ============ 持仓深度辨析②：同刻证伪 + 峰位节奏 ============ */}
+      <Card tag="深度辨析 ②" title="顶部当天与去年同一天比？——伪信号；持仓峰也没更早"
+        desc="把「同期」理解成顶部所在的日历日（如 09 合约顶部 8–9 日），今年顶那天 vs 去年顶那天；再检验早顶合约的持仓峰是否提前到来。">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead><tr className="text-[var(--muted)] border-b border-[var(--border)]">
+              {["同比对齐方式", "早顶组", "晚顶组", "AUC（早>晚）"].map((h, i) => <th key={h} className={`p-2 font-medium whitespace-nowrap ${i === 0 ? "text-left" : "text-center"}`}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {[
+                { label: "顶部同日 vs 去年同日（伪）", s: dd.sameTime.sameTimeYoy },
+                { label: "窗口起点 vs 去年起点（现用）", s: dd.sameTime.startYoy },
+              ].map((r, i) => (
+                <tr key={r.label} className="border-b border-[var(--border)]">
+                  <td className="p-2 text-left font-semibold whitespace-nowrap">{r.label}</td>
+                  <td className="p-2 text-center whitespace-nowrap" style={{ color: RED }}>{pct(r.s.early.avg)} · 正 {r.s.early.pos}/{r.s.early.n}</td>
+                  <td className="p-2 text-center whitespace-nowrap" style={{ color: GREEN }}>{pct(r.s.late.avg)} · 正 {r.s.late.pos}/{r.s.late.n}</td>
+                  <td className="p-2 text-center font-bold" style={{ color: i === 0 ? t.muted : RED }}>{r.s.auc}{i === 1 ? " ★" : ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-[11px] text-[var(--muted)] mt-2 leading-relaxed">
+          同为 {dd.sameTime.n} 例样本：顶部同日口径下晚顶组竟均值 <b style={{ color: GREEN }}>+322.4%</b>、AUC <b>0.500</b>（抛硬币）；换回窗口起点口径，晚顶组 −16.4%、AUC <b style={{ color: RED }}>0.714</b>。原因是临近交割持仓枯竭，分母接近零导致比值爆炸。
+        </p>
+        <div className="mt-3">
+          <div className="text-sm font-semibold mb-2">晚顶组「同刻同比 &gt;100%」的异常样本（共 {dd.sameTime.outlierCount} 例）</div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead><tr className="text-[var(--muted)] border-b border-[var(--border)]">
+                {["合约", "顶部日", "今年持仓", "去年同日", "同刻同比", "顶部占自身起点"].map((h, i) => <th key={h} className={`p-2 font-medium whitespace-nowrap ${i < 2 ? "text-left" : "text-center"}`}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {dd.sameTime.anomalies.map((a) => (
+                  <tr key={a.sym} className="border-b border-[var(--border)]">
+                    <td className="p-2 text-left font-semibold">{a.sym}</td>
+                    <td className="p-2 text-left">{a.peakDate}</td>
+                    <td className="p-2 text-center">{a.oiNow.toLocaleString()}</td>
+                    <td className="p-2 text-center">{a.oiPrev.toLocaleString()}</td>
+                    <td className="p-2 text-center font-bold" style={{ color: RED }}>{pct(a.yoy)}</td>
+                    <td className="p-2 text-center" style={{ color: GREEN }}>{a.selfPeak}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
+          <div>
+            <ReactECharts option={peakPosOption} style={{ height: 260, width: "100%" }} notMerge opts={{ renderer: "svg" }} />
+          </div>
+          <div className="rounded-lg p-3" style={{ background: "var(--card-hover)", borderLeft: "3px solid var(--primary)" }}>
+            <div className="text-sm font-bold mb-2">持仓峰 vs 价格峰：谁先到？</div>
+            <div className="text-xs space-y-1.5 leading-relaxed">
+              <p>持仓峰进度：早顶 <b>{dd.peakPos.early.oiProgAvg}%</b>（中位 {dd.peakPos.early.oiProgMed}%）/ 晚顶 <b>{dd.peakPos.late.oiProgAvg}%</b>（中位 {dd.peakPos.late.oiProgMed}%），AUC <b>{dd.peakPos.aucOiProg}</b>——<b style={{ color: t.fg }}>两组几乎同一时点见持仓峰</b>。</p>
+              <p>持仓峰 − 价格峰：早顶 <b style={{ color: RED }}>+{dd.peakPos.early.lagAvg} 个交易日</b>（{dd.peakPos.early.lagLater}/{dd.peakPos.early.n} 例持仓峰更晚）/ 晚顶 <b style={{ color: GREEN }}>{dd.peakPos.late.lagAvg} 个交易日</b>（{dd.peakPos.late.lagLater}/{dd.peakPos.late.n} 例更晚），AUC <b>{dd.peakPos.aucLag}</b>。</p>
+              <p className="text-[11px] text-[var(--muted)]">{dd.peakPos.note}</p>
+            </div>
+          </div>
+        </div>
+        <p className="text-[11px] text-[var(--muted)] mt-3 leading-relaxed">
+          结论：<b style={{ color: t.fg }}>持仓对比必须在流动性可比的窗口起点做；持仓峰的节奏两组一样，差异来自价格峰位置</b>。高点持仓水位之所以判别力强，本质是价格峰出现时点的代理，只能事后确认、不能事前预判。
+        </p>
+      </Card>
+
       {/* ============ 第四步：预测 2705 ============ */}
       <Card tag="最终预测" title="2705 合约形态预判" desc={`05 合约窗口 12 月才开始，当前用 11 月中旬价作起点代理。历史校准 Spearman ρ：豆油 ${fc.calibration.soyRho}、棕榈油 ${fc.calibration.palmRho}——代理价分位排序几乎无损。`}>
         <QuantileBar
@@ -514,7 +657,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
           <p><b style={{ color: t.fg }}>形态定义：</b>早顶=峰值出现在窗口前 50%，晚顶=后 20%，中间=其余；峰值=窗口内最高价 high，末值=窗口最后交易日收盘。归一化基准为窗口起始交易日收盘=100。</p>
           <p><b style={{ color: t.fg }}>期初价分位：</b>合约期初绝对价在同品种、同月份合约 7–8 年样本中的百分位。这是相对小样本，历史窗口变化会改变数值。</p>
           <p><b style={{ color: t.fg }}>预判局限：</b>期初分位规则留一交叉验证命中率仅约 59%（多数类基线 51%），是概率倾向而非确定性规则；有反例，见上表。2705 用 11 月价代理，<b style={{ color: t.fg }}>{fc.caveat}</b></p>
-          <p><b style={{ color: t.fg }}>持仓口径：</b>持仓量取新浪日线 p 字段（未平仓合约手数），窗口逐日与价格对齐。持仓同比 = 本交割年合约窗口首日持仓 ÷ 上一交割年同月份合约窗口首日持仓 − 1；2705 用 11 月中旬作代理。高点持仓水位为事后指标（依赖峰值日期），不可事前预判；持仓同比虽有置换检验支撑，但留一命中仅略高于多数类基线，且与年份秩相关 ρ={oi.lifecycle.yearRho}，存在体制混淆。</p>
+          <p><b style={{ color: t.fg }}>持仓口径：</b>持仓量取新浪日线 p 字段（未平仓合约手数），窗口逐日与价格对齐。持仓同比 = 本交割年合约窗口首日持仓 ÷ 上一交割年同月份合约窗口首日持仓 − 1；2705 用 11 月中旬作代理。历史分位 = 同一品种同一合约 7–8 年样本中的排位；顶部同日同比（{dd.sameTime.n} 例）仅作证伪演示，因临近交割分母坍缩不可用。持仓峰进度取持仓序列最大值所在交易日 ÷ 窗口长度；峰差 = 持仓峰索引 − 价格峰索引（价格峰按 peak_date 在对齐序列中定位）。高点持仓水位为事后指标（依赖峰值日期），不可事前预判；持仓同比虽有置换检验支撑，但留一命中仅略高于多数类基线，且与年份秩相关 ρ={oi.lifecycle.yearRho}，存在体制混淆。</p>
           <p><b style={{ color: t.fg }}>数据边界：</b>期货主力合约价格，非现货采购价；未叠加基差、升贴水、运费、汇率。样本仅 7–8 年，其中约 3 年为极端牛市（2020–2022）。适合判断时间节奏与相对强弱，不宜单独决定采购量或锁价点位。</p>
           <p><b style={{ color: t.fg }}>自动更新：</b>历史规律由豆油/棕榈油分析数据复算；2705 实时价来自新浪财经。每个交易日自动重算，数据时间：{data.fetch_date}。</p>
         </div>

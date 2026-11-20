@@ -167,6 +167,73 @@ export interface OiAnalysis {
   };
 }
 
+/** 持仓深度辨析：三个追问的严谨复算 */
+export interface OiCaliberStat {
+  n: number;
+  avg: number;
+  pos: number;
+}
+export interface OiCaliberRow {
+  label: string;
+  early: OiCaliberStat;
+  late: OiCaliberStat;
+  auc: number;          // AUC(早顶 > 晚顶)，>0.5 表示早顶持仓更高
+  verdict: string;
+}
+export interface OiBucket {
+  label: string;
+  n: number;
+  early: number;
+  earlyRate: number | null;
+}
+export interface OiSameTimeStat {
+  early: OiCaliberStat;
+  late: OiCaliberStat;
+  auc: number;
+}
+export interface OiAnomaly {
+  sym: string;
+  peakDate: string;
+  oiNow: number;
+  oiPrev: number;
+  yoy: number;
+  selfPeak: number;
+}
+export interface OiPeakGroup {
+  n: number;
+  oiProgAvg: number;
+  oiProgMed: number;
+  priceProgAvg: number;
+  lagAvg: number;
+  lagLater: number;
+}
+export interface OiDeepDive {
+  caliber: {
+    rows: OiCaliberRow[];
+    posLabel: string[];
+    buckets: OiBucket[];
+    earlyDetail: string[];
+    note: string;
+  };
+  sameTime: {
+    n: number;
+    earlyN: number;
+    lateN: number;
+    sameTimeYoy: OiSameTimeStat;
+    startYoy: OiSameTimeStat;
+    anomalies: OiAnomaly[];
+    outlierCount: number;
+    note: string;
+  };
+  peakPos: {
+    early: OiPeakGroup;
+    late: OiPeakGroup;
+    aucOiProg: number;
+    aucLag: number;
+    note: string;
+  };
+}
+
 export interface OilShapeResearchData {
   source: string;
   fetch_date: string;
@@ -180,6 +247,7 @@ export interface OilShapeResearchData {
   forecast: Forecast;
   paths: Record<string, { oil: string; norm: number[] }>;
   oiAnalysis: OiAnalysis;
+  oiDeepDive: OiDeepDive;
   allRows: DataRow[];
 }
 
