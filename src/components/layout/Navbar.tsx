@@ -30,18 +30,6 @@ export function Navbar({ user }: NavbarProps) {
                     {/* Desktop Nav */}
                     <div className="hidden md:flex items-center gap-6">
                         <Link
-                            href="/dashboard"
-                            className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
-                        >
-                            仪表板
-                        </Link>
-                        <Link
-                            href="/charts"
-                            className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
-                        >
-                            图表
-                        </Link>
-                        <Link
                             href="/analysis/crush-margin"
                             className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
                         >
@@ -121,20 +109,6 @@ export function Navbar({ user }: NavbarProps) {
                 isOpen && (
                     <div className="md:hidden bg-[var(--card)] border-b border-[var(--border)] animate-in">
                         <div className="px-4 py-4 space-y-3">
-                            <Link
-                                href="/dashboard"
-                                className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
-                                onClick={() => setIsOpen(false)}
-                            >
-                                仪表板
-                            </Link>
-                            <Link
-                                href="/charts"
-                                className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
-                                onClick={() => setIsOpen(false)}
-                            >
-                                图表
-                            </Link>
                             <Link
                                 href="/analysis/crush-margin"
                                 className="block py-2 text-[var(--muted)] hover:text-[var(--foreground)]"
