@@ -2,7 +2,7 @@
   "database": "oil-research.sqlite",
   "title": "油脂研究数据库",
   "description": "豆油(Y)、棕榈油(P) 主力 01/05/09 合约历史行情、持仓与形态研究复算结果的单一 SQLite 数据库。与网页报告同源，由脚本生成。",
-  "generated_at": "2026-11-20T03:26:35.513Z",
+  "generated_at": "2026-11-20T05:03:51.552Z",
   "sources": [
     {
       "name": "豆油主力分析",
@@ -19,7 +19,7 @@
     {
       "name": "油脂形态研究",
       "file": "oil-shape-research.json",
-      "updated_at": "2026-11-20T03:02:10.584Z",
+      "updated_at": "2026-11-20T05:01:48.181Z",
       "source": "形态规律由豆油/棕榈油主力分析数据复算；2705 实时价来自新浪财经期货日线 JSONP"
     }
   ],
@@ -340,6 +340,101 @@
         "lag_later:INTEGER"
       ],
       "rows": 2
+    },
+    {
+      "name": "oi_decline_horizon",
+      "comment": "持仓峰后 T+N 价格表现（相对峰日收盘，分品种/合计）",
+      "columns": [
+        "t_days:INTEGER",
+        "oil:TEXT",
+        "n:INTEGER",
+        "down:INTEGER",
+        "down_rate:REAL",
+        "avg_pct:REAL",
+        "med_pct:REAL"
+      ],
+      "rows": 12
+    },
+    {
+      "name": "oi_decline_by_contract",
+      "comment": "持仓峰后价格表现按品种×合约细分（T+20/T+40）",
+      "columns": [
+        "t_days:INTEGER",
+        "oil:TEXT",
+        "contract:TEXT",
+        "n:INTEGER",
+        "down:INTEGER",
+        "down_rate:REAL",
+        "avg_pct:REAL",
+        "med_pct:REAL"
+      ],
+      "rows": 12
+    },
+    {
+      "name": "oi_decline_depth",
+      "comment": "持仓自峰顶减仓 X% 时的价格表现（跌幅集中在减仓早期）",
+      "columns": [
+        "drop_pct:INTEGER",
+        "oil:TEXT",
+        "n:INTEGER",
+        "down:INTEGER",
+        "down_rate:REAL",
+        "avg_pct:REAL",
+        "med_pct:REAL"
+      ],
+      "rows": 8
+    },
+    {
+      "name": "oi_decline_event_path",
+      "comment": "事件研究价格路径：持仓峰=100，峰前后交易日 -30~+60",
+      "columns": [
+        "oil:TEXT",
+        "day_from_peak:INTEGER",
+        "price_norm:REAL"
+      ],
+      "rows": 182
+    },
+    {
+      "name": "oi_decline_timing",
+      "comment": "日度减仓择时检验：减仓日 vs 增仓日后续收益（AUC≈0.5=无择时价值）",
+      "columns": [
+        "future_days:INTEGER",
+        "oil:TEXT",
+        "dec_n:INTEGER",
+        "inc_n:INTEGER",
+        "dec_avg_pct:REAL",
+        "inc_avg_pct:REAL",
+        "auc:REAL"
+      ],
+      "rows": 9
+    },
+    {
+      "name": "oi_decline_current",
+      "comment": "当前进行中合约的持仓峰定位（Y2701/P2701，不计入历史统计）",
+      "columns": [
+        "symbol:TEXT",
+        "peak_date:TEXT",
+        "peak_progress:REAL",
+        "after_days:INTEGER",
+        "oi_peak:REAL",
+        "oi_now:REAL",
+        "declined_pct:REAL",
+        "price_from_peak_pct:REAL"
+      ],
+      "rows": 2
+    },
+    {
+      "name": "oi_decline_similar",
+      "comment": "当前合约的历史相似案例（同品种、持仓峰进度<30%）",
+      "columns": [
+        "current_sym:TEXT",
+        "sym:TEXT",
+        "peak_date:TEXT",
+        "peak_progress:REAL",
+        "px20_pct:REAL",
+        "px40_pct:REAL"
+      ],
+      "rows": 13
     },
     {
       "name": "exceptions",

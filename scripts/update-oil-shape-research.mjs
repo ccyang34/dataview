@@ -259,6 +259,147 @@ function oiDeepDive(rows) {
   return { caliber, sameTime, peakPos };
 }
 
+/**
+ * 持仓峰后减仓与价格走势分析（第三问：持仓从最高峰往下减，价格怎么走）
+ *
+ * 口径：
+ *  - 每个合约在窗口内取持仓量历史最高点为「持仓峰」(t=0)，只保留峰后有 ≥20 交易日的样本；
+ *  - 价格用日线收盘 abs；持仓用日线 p（每日持仓量）；缺失值前向填充，开头空缺剔除；
+ *  - 价格变化统一相对「峰日收盘」计算，避免与窗口起点口径混淆；
+ *  - 当前进行中合约 Y2701/P2701 单列，不计入历史统计。
+ * 输出：分品种/合约的 T+N 下跌占比与均值、减仓 X% 时的价格、事件研究路径、
+ *       日度减仓择时 AUC、持仓峰 vs 价格峰时序、当前合约定位。
+ */
+function oiDecline() {
+  const pct = (a, b) => (a && b) ? (a / b - 1) * 100 : null;
+  const downStat = (vals) => {
+    const ok = vals.filter((v) => v != null && !Number.isNaN(v));
+    const down = ok.filter((v) => v < 0).length;
+    return { n: ok.length, down, downRate: ok.length ? round(down / ok.length * 100, 0) : null,
+      avg: ok.length ? round(mean(ok), 2) : null,
+      med: ok.length ? round([...ok].sort((a, b) => a - b)[Math.floor(ok.length / 2)], 2) : null };
+  };
+  // 前向填充（缺失日沿用前值，上市前保持空缺）
+  const ffill = (arr) => {
+    const out = []; let last = null;
+    for (const x of arr) { if (x != null && !Number.isNaN(x)) last = x; out.push(last); }
+    return out;
+  };
+
+  // 全样本事件序列
+  const ev = [];
+  for (const [oil, d] of Object.entries(D)) {
+    for (const ct of CT) {
+      const dmap = new Map(d.types[ct].daily.series.map((x) => [x.symbol, x]));
+      for (const s of d.types[ct].series) {
+        const ds = dmap.get(s.symbol);
+        if (!ds) continue;
+        const rawDates = ds.dates;
+        const oiF = ffill(ds.oi || []), pxF = ffill(ds.abs || []);
+        const L = Math.min(rawDates.length, oiF.length, pxF.length);
+        // 三者同步裁剪：从「日期 + 持仓 + 价格」都有值的位置起
+        let st = 0;
+        while (st < L && (rawDates[st] == null || oiF[st] == null || pxF[st] == null)) st++;
+        const dates = rawDates.slice(st, L), oi = oiF.slice(st, L), px = pxF.slice(st, L);
+        const n = dates.length;
+        if (n < 40 || oi.some((x) => x == null) || px.some((x) => x == null)) continue;
+        let peak = 0;
+        for (let i = 1; i < n; i++) if (oi[i] > oi[peak]) peak = i;
+        const after = n - 1 - peak;
+        if (after < 20) continue;
+        ev.push({ oil, ct, sym: s.symbol, dates, oi, px,
+          peak, after, oiPeak: oi[peak], current: s.symbol === "Y2701" || s.symbol === "P2701",
+          progress: round(peak / (n - 1) * 100, 0), pricePeakIdx: dates.indexOf(s.peak_date) });
+      }
+    }
+  }
+
+  const hist = ev.filter((e) => !e.current);
+  const by = (arr, oil, ct) => arr.filter((e) => (!oil || e.oil === oil) && (!ct || e.ct === ct));
+
+  // 1) 持仓峰后 T+N 价格变化（相对峰日收盘）
+  const horizons = [5, 10, 20, 40].map((N) => {
+    const calc = (arr) => downStat(arr.filter((e) => e.after >= N).map((e) => pct(e.px[e.peak + N], e.px[e.peak])));
+    return { n: N, soy: calc(by(hist, "豆油")), palm: calc(by(hist, "棕榈油")), all: calc(hist) };
+  });
+  // 2) 按合约类型细分（T+20 / T+40）
+  const byContract = [20, 40].map((N) => {
+    const cell = (oil, ct) => downStat(by(hist, oil, ct).filter((e) => e.after >= N).map((e) => pct(e.px[e.peak + N], e.px[e.peak])));
+    return { n: N, soy01: cell("豆油", "01"), soy05: cell("豆油", "05"), soy09: cell("豆油", "09"),
+      palm01: cell("棕榈油", "01"), palm05: cell("棕榈油", "05"), palm09: cell("棕榈油", "09") };
+  });
+  // 3) 持仓自峰顶减仓 X% 时的价格变化
+  const drops = [10, 20, 30, 50].map((D) => {
+    const calc = (arr) => downStat(arr.map((e) => {
+      const target = e.oiPeak * (1 - D / 100);
+      for (let i = e.peak + 1; i < e.oi.length; i++) if (e.oi[i] <= target) return pct(e.px[i], e.px[e.peak]);
+      return null;
+    }));
+    return { drop: D, soy: calc(by(hist, "豆油")), palm: calc(by(hist, "棕榈油")) };
+  });
+  // 4) 事件研究价格路径（持仓峰=100，峰前后各取一段，样本≥8 才出点）
+  const path = (oil) => {
+    const arr = by(hist, oil);
+    const out = [];
+    for (let k = -30; k <= 60; k++) {
+      const vals = arr.map((e) => (e.peak + k >= 0 && e.peak + k < e.px.length) ? e.px[e.peak + k] / e.px[e.peak] * 100 : null).filter((v) => v != null);
+      if (vals.length >= 8) out.push([k, round(mean(vals), 2)]);
+    }
+    return out;
+  };
+  // 5) 日度减仓择时 AUC（减仓日 vs 增仓日的后续收益，AUC<0.5=减仓偏跌）
+  const mwAuc = (pos, neg) => {
+    if (!pos.length || !neg.length) return null;
+    const all = [...pos.map((v) => [v, 1]), ...neg.map((v) => [v, 0])].sort((a, b) => a[0] - b[0]);
+    let rs = 0, i = 0;
+    while (i < all.length) {
+      let j = i; while (j + 1 < all.length && all[j + 1][0] === all[i][0]) j++;
+      const ar = (i + j) / 2 + 1;
+      rs += all.slice(i, j + 1).filter((x) => x[1] === 1).length * ar;
+      i = j + 1;
+    }
+    return round((rs - pos.length * (pos.length + 1) / 2) / (pos.length * neg.length), 3);
+  };
+  const timing = [5, 10, 20].map((K) => {
+    const calc = (arr) => {
+      const dec = [], inc = [];
+      for (const e of arr) for (let i = e.peak + 1; i < e.px.length - K; i++) {
+        const chg = (e.oi[i] - e.oi[i - 1]) / e.oi[i - 1] * 100;
+        const fut = pct(e.px[i + K], e.px[i]);
+        if (fut == null) continue;
+        if (chg < -0.5) dec.push(fut); else if (chg > 0.5) inc.push(fut);
+      }
+      return { decN: dec.length, incN: inc.length, decAvg: round(mean(dec), 3), incAvg: round(mean(inc), 3), auc: mwAuc(dec, inc) };
+    };
+    return { k: K, soy: calc(by(hist, "豆油")), palm: calc(by(hist, "棕榈油")), all: calc(hist) };
+  });
+  // 6) 持仓峰 vs 价格峰时序
+  const seq = (oil) => {
+    const arr = by(hist, oil).filter((e) => e.pricePeakIdx >= 0);
+    const diffs = arr.map((e) => e.pricePeakIdx - e.peak);
+    return { n: arr.length, priceFirst: diffs.filter((d) => d < -2).length, sync: diffs.filter((d) => Math.abs(d) <= 2).length,
+      oiFirst: diffs.filter((d) => d > 2).length, avgLag: diffs.length ? round(mean(diffs), 0) : null };
+  };
+  // 7) 当前合约定位 + 历史相似案例（同品种、持仓峰进度<30%）
+  const current = ev.filter((e) => e.current).map((e) => {
+    const sim = by(hist, e.oil).filter((x) => x.progress < 30).map((x) => ({
+      sym: x.sym, date: x.dates[x.peak], progress: x.progress,
+      px20: x.after >= 20 ? round(pct(x.px[x.peak + 20], x.px[x.peak]), 2) : null,
+      px40: x.after >= 40 ? round(pct(x.px[x.peak + 40], x.px[x.peak]), 2) : null,
+    }));
+    return { sym: e.sym, peakDate: e.dates[e.peak], progress: e.progress, after: e.after,
+      oiPeak: e.oiPeak, oiNow: e.oi[e.oi.length - 1], declined: round((1 - e.oi[e.oi.length - 1] / e.oiPeak) * 100, 0),
+      priceFromPeak: round(pct(e.px[e.px.length - 1], e.px[e.peak]), 2),
+      t: [5, 10, 20, 40].filter((N) => e.after >= N).map((N) => ({ n: N, px: round(pct(e.px[e.peak + N], e.px[e.peak]), 2), oi: round(pct(e.oi[e.peak + N], e.oi[e.peak]), 1) })),
+      similar: sim };
+  });
+
+  const note = "持仓见顶后价格并非普遍跟跌：豆油在峰后 T+5/T+20 有 82% 样本下跌（均值约 −3%），棕榈油反而 T+40 仅 32% 下跌、均值转正；减仓跌幅集中在早期，减到 30–50% 后下跌占比回落。日度减仓择时 AUC 仅 0.50–0.53（近抛硬币），真正有信息的是「持仓见顶」这一阶段性事件，且两品种方向相反。持仓下降与价格走弱多为临近交割/移仓的共同结果，非因果。";
+  return { sample: { total: hist.length, soy: by(hist, "豆油").length, palm: by(hist, "棕榈油").length },
+    horizons, byContract, drops, path: { soy: path("豆油"), palm: path("棕榈油") }, timing,
+    sequence: { soy: seq("豆油"), palm: seq("棕榈油") }, current, note };
+}
+
 /** 2705 当前持仓 vs 上一交割年 05 合约同期持仓（代理同比） */
 async function fetchOiForecast() {
   const out = {};
@@ -606,6 +747,10 @@ async function main() {
   // ---- 7. 持仓量二次分析 ----
   const oi = await oiAnalysis(rows);
   const deep = oiDeepDive(rows);
+  const decline = oiDecline();
+  console.log("持仓峰后减仓分析: 样本", decline.sample.total,
+    "| T+20 豆油跌", decline.horizons[2].soy.downRate + "%", "棕榈跌", decline.horizons[2].palm.downRate + "%",
+    "| 日度择时 AUC", decline.timing[2].all.auc);
   const sigOf = (y) => y == null ? "未知" : y < 0 ? "晚顶" : "早顶";
   oi.forecast.combined = {
     Y2705: { oiSignal: sigOf(oi.forecast.Y2705.yoy), priceSignal: forecast.contracts.Y2705.verdict },
@@ -643,6 +788,7 @@ async function main() {
     shapeValidation, shapeGroups, earlyFeatures, quantileSignal, monthJump, forecast, paths,
     oiAnalysis: oi,
     oiDeepDive: deep,
+    oiDecline: decline,
     allRows: rows.map((r) => ({ oil: r.oil, ct: r.ct, sym: r.sym, year: r.year, pos: r.pos, tag: r.tag,
       peak: r.peak, end: r.end, fall: r.fall, startPct: r.startPct == null ? null : round(r.startPct * 100, 0),
       oiAtPeak: r.oiAtPeak ?? null, oiYoy: r.oiYoy ?? null })),

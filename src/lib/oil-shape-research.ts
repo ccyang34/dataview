@@ -234,6 +234,43 @@ export interface OiDeepDive {
   };
 }
 
+/** 持仓峰后减仓与价格走势分析 */
+export interface DeclineStat {
+  n: number;
+  down: number;
+  downRate: number | null;
+  avg: number | null;
+  med: number | null;
+}
+export interface OiDecline {
+  sample: { total: number; soy: number; palm: number };
+  horizons: { n: number; soy: DeclineStat; palm: DeclineStat; all: DeclineStat }[];
+  byContract: {
+    n: number;
+    soy01: DeclineStat; soy05: DeclineStat; soy09: DeclineStat;
+    palm01: DeclineStat; palm05: DeclineStat; palm09: DeclineStat;
+  }[];
+  drops: { drop: number; soy: DeclineStat; palm: DeclineStat }[];
+  path: { soy: number[][]; palm: number[][] };
+  timing: {
+    k: number;
+    soy: { decN: number; incN: number; decAvg: number; incAvg: number; auc: number };
+    palm: { decN: number; incN: number; decAvg: number; incAvg: number; auc: number };
+    all: { decN: number; incN: number; decAvg: number; incAvg: number; auc: number };
+  }[];
+  sequence: {
+    soy: { n: number; priceFirst: number; sync: number; oiFirst: number; avgLag: number | null };
+    palm: { n: number; priceFirst: number; sync: number; oiFirst: number; avgLag: number | null };
+  };
+  current: {
+    sym: string; peakDate: string; progress: number; after: number;
+    oiPeak: number; oiNow: number; declined: number; priceFromPeak: number;
+    t: { n: number; px: number; oi: number }[];
+    similar: { sym: string; date: string; progress: number; px20: number | null; px40: number | null }[];
+  }[];
+  note: string;
+}
+
 export interface OilShapeResearchData {
   source: string;
   fetch_date: string;
@@ -248,6 +285,7 @@ export interface OilShapeResearchData {
   paths: Record<string, { oil: string; norm: number[] }>;
   oiAnalysis: OiAnalysis;
   oiDeepDive: OiDeepDive;
+  oiDecline: OiDecline;
   allRows: DataRow[];
 }
 

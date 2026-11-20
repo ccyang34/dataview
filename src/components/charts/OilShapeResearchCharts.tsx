@@ -47,7 +47,7 @@ const colorOf = (v: number) => v >= 0 ? RED : GREEN;
 
 export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData }) {
   const t = useThemeColors();
-  const { shapeValidation: sv, shapeGroups: sg, earlyFeatures: ef, quantileSignal: qs, monthJump: mj, forecast: fc, paths, allRows, oiAnalysis: oi, oiDeepDive: dd } = data;
+  const { shapeValidation: sv, shapeGroups: sg, earlyFeatures: ef, quantileSignal: qs, monthJump: mj, forecast: fc, paths, allRows, oiAnalysis: oi, oiDeepDive: dd, oiDecline: dec } = data;
 
   const common = {
     backgroundColor: "transparent",
@@ -227,6 +227,81 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
     };
   }, [dd, t]);
 
+  // ---- 持仓峰后减仓与价格走势（第三个追问） ----
+  // 图9：事件研究价格路径。y 轴固定 90~108，避免自动缩放把个位数波动拉成陡坡。
+  const declinePathOption = useMemo(() => {
+    const axis = dec.path.soy.map((p) => p[0]);
+    const mk = (name: string, arr: number[][], color: string, dash?: string) => ({
+      name, type: "line", data: arr.map((p) => p[1]), showSymbol: false, smooth: true,
+      lineStyle: { width: 2.4, color, type: dash || "solid" }, itemStyle: { color },
+      markPoint: name === "豆油" ? { symbol: "circle", symbolSize: 1, data: [] } : undefined,
+    });
+    return {
+      ...common,
+      tooltip: { trigger: "axis", backgroundColor: t.card, borderColor: t.border, textStyle: { color: t.fg },
+        formatter: (ps: { axisValue: string; seriesName: string; value: number; marker: string }[]) => {
+          const k = Number(ps[0].axisValue);
+          const head = `${k >= 0 ? "峰后 +" : "峰前 "}${k} 交易日<br/>`;
+          return head + ps.map((p) => `${p.marker}${p.seriesName}　${Number(p.value).toFixed(2)}`).join("<br/>");
+        } },
+      legend: { data: ["豆油 Y", "棕榈油 P"], top: 0, textStyle: { color: t.muted, fontSize: 11 } },
+      grid: { left: 52, right: 20, top: 34, bottom: 34 },
+      xAxis: { type: "category", name: "相对持仓峰的交易日", data: axis.map(String), nameTextStyle: { color: t.muted, fontSize: 10 },
+        axisLabel: { color: t.muted, fontSize: 10, interval: 14, formatter: (v: string) => (Number(v) > 0 ? "+" : "") + v },
+        axisLine: { lineStyle: { color: t.border } } },
+      // 固定纵轴范围：几%的涨跌如实呈现，不因自动缩放放大斜率
+      yAxis: { type: "value", min: 90, max: 108, interval: 3, name: "价格（峰日=100）",
+        nameTextStyle: { color: t.muted, fontSize: 10 }, axisLabel: { color: t.muted, fontSize: 10, formatter: (v: number) => String(v) },
+        splitLine: { lineStyle: { color: t.split } } },
+      series: [
+        mk("豆油 Y", dec.path.soy, "#A32D2D"),
+        mk("棕榈油 P", dec.path.palm, "#185FA5"),
+        { name: "基准", type: "line", data: axis.map(() => 100), showSymbol: false, silent: true,
+          lineStyle: { width: 1, color: t.muted, type: "dashed", opacity: 0.6 }, tooltip: { show: false } },
+      ],
+    };
+  }, [dec, t]);
+
+  // 图10：持仓峰后 T+N 下跌概率（分品种）
+  const declineHorizonOption = useMemo(() => ({
+    ...common,
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, backgroundColor: t.card, borderColor: t.border, textStyle: { color: t.fg },
+      formatter: (ps: { dataIndex: number }[]) => {
+        const h = dec.horizons[ps[0].dataIndex];
+        return `持仓峰后 T+${h.n}<br/>豆油：${h.soy.down}/${h.soy.n} 下跌（${h.soy.downRate}%），均值 ${h.soy.avg}%<br/>棕榈油：${h.palm.down}/${h.palm.n} 下跌（${h.palm.downRate}%），均值 ${h.palm.avg}%`;
+      } },
+    legend: { data: ["豆油 Y", "棕榈油 P"], top: 0, textStyle: { color: t.muted, fontSize: 11 } },
+    grid: { left: 44, right: 18, top: 34, bottom: 26 },
+    xAxis: { type: "category", data: dec.horizons.map((h) => "T+" + h.n), axisLabel: { color: t.muted }, axisLine: { lineStyle: { color: t.border } } },
+    yAxis: { type: "value", name: "下跌样本占比 %", min: 0, max: 100, nameTextStyle: { color: t.muted, fontSize: 10 }, axisLabel: { color: t.muted, fontSize: 10 }, splitLine: { lineStyle: { color: t.split } } },
+    series: [
+      { name: "豆油 Y", type: "bar", barWidth: "30%", data: dec.horizons.map((h) => h.soy.downRate),
+        itemStyle: { color: "#A32D2D", borderRadius: [3, 3, 0, 0] }, label: { show: true, position: "top", color: t.fg, fontSize: 10, formatter: (p: { value: number }) => p.value + "%" } },
+      { name: "棕榈油 P", type: "bar", barWidth: "30%", data: dec.horizons.map((h) => h.palm.downRate),
+        itemStyle: { color: "#185FA5", borderRadius: [3, 3, 0, 0] }, label: { show: true, position: "top", color: t.fg, fontSize: 10, formatter: (p: { value: number }) => p.value + "%" } },
+      { name: "50%", type: "line", data: dec.horizons.map(() => 50), silent: true, symbol: "none",
+        lineStyle: { color: t.muted, type: "dashed", width: 1, opacity: 0.7 }, tooltip: { show: false } },
+    ],
+  }), [dec, t]);
+
+  // 图11：持仓自峰顶减仓 X% 时的平均价格变化
+  const declineDepthOption = useMemo(() => ({
+    ...common,
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, backgroundColor: t.card, borderColor: t.border, textStyle: { color: t.fg },
+      valueFormatter: (v: number) => Number(v).toFixed(2) + "%" },
+    legend: { data: ["豆油 Y", "棕榈油 P"], top: 0, textStyle: { color: t.muted, fontSize: 11 } },
+    grid: { left: 46, right: 18, top: 34, bottom: 26 },
+    xAxis: { type: "category", data: dec.drops.map((d) => "减仓 " + d.drop + "%"), axisLabel: { color: t.muted }, axisLine: { lineStyle: { color: t.border } } },
+    yAxis: { type: "value", name: "价格均值 %", nameTextStyle: { color: t.muted, fontSize: 10 }, axisLabel: { color: t.muted, fontSize: 10, formatter: (v: number) => (v > 0 ? "+" : "") + v }, splitLine: { lineStyle: { color: t.split } } },
+    series: [
+      { name: "豆油 Y", type: "bar", barWidth: "30%", data: dec.drops.map((d) => d.soy.avg),
+        itemStyle: { color: (p: { value: number }) => p.value >= 0 ? RED : GREEN, borderRadius: [3, 3, 0, 0] } },
+      { name: "棕榈油 P", type: "bar", barWidth: "30%", data: dec.drops.map((d) => d.palm.avg),
+        itemStyle: { color: (p: { dataIndex: number }) => (dec.drops[p.dataIndex].palm.avg ?? 0) >= 0 ? "#185FA5" : "#5DCAA5", borderRadius: [3, 3, 0, 0] },
+        label: { show: true, position: "top", color: t.muted, fontSize: 10, formatter: (p: { value: number }) => (p.value > 0 ? "+" : "") + p.value.toFixed(2) } },
+    ],
+  }), [dec, t]);
+
   // ---- 复刻用户称赞的 2705 分位预判图（纯 CSS） ----
   const QuantileBar = ({ label, price, q, note }: { label: string; price: number; q: number; note: string }) => (
     <div style={{ marginBottom: 22 }}>
@@ -270,6 +345,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
           <p><b>4. 2705 预判：</b>Y2705（分位 {fc.contracts.Y2705.quantile}%）与 P2705（分位 {fc.contracts.P2705.quantile}%）均处高位 → <b style={{ color: RED }}>{fc.verdict}型</b>；叠加 05 合约自 {fc.structural.noLateSince} 年起连续无晚顶，倾向冲高回落、不宜持有到末段。</p>
           <p><b>5. 持仓量二次分析：</b>持仓曲线本身无预判力（早期 AUC≈0.5），<b style={{ color: GREEN }}>但期初持仓同比是独立的事前信号</b>（AUC {oi.lifecycle.earlyAuc.oiYoy}，置换检验 p={oi.lifecycle.permutation.pValue}）：同比缩量偏晚顶、增量偏早顶。与期初价分位叠加后，<b>低价+缩量 8/8 晚顶、高价+增量 7/9 早顶</b>；2705 上棕榈油两信号一致（持仓同比 {pct(oi.forecast.P2705.yoy ?? 0)}），豆油略冲突但信号弱（{pct(oi.forecast.Y2705.yoy ?? 0)}）。</p>
           <p><b>6. 持仓口径辨析：</b>早顶「高于历史同期」只在<b>同比</b>口径成立（AUC {dd.caliber.rows[0].auc}）；<b>历史分位</b>口径判别力仅 {dd.caliber.rows[1].auc}、分档不单调。把「同期」对齐到顶部同日会因交割前持仓枯竭产生伪信号（AUC {dd.sameTime.sameTimeYoy.auc}）；持仓峰进度早/晚顶几乎相同（{dd.peakPos.early.oiProgAvg}% / {dd.peakPos.late.oiProgAvg}%），<b style={{ color: t.fg }}>早顶的持仓峰并未更早到来</b>。</p>
+          <p><b>7. 持仓从峰顶往下减时，价格怎么走：</b>不是普遍跟跌，而是<b>品种相反</b>——豆油峰后 T+20 有 <b style={{ color: RED }}>{dec.horizons[2].soy.downRate}%</b> 样本下跌（均值 {pct(dec.horizons[2].soy.avg ?? 0)}），棕榈 T+40 仅 {dec.horizons[3].palm.downRate}% 下跌、均值转正 {pct(dec.horizons[3].palm.avg ?? 0)}。跌幅集中在减仓早期；日度减仓择时 AUC≈{dec.timing[2].all.auc}（抛硬币）。<b style={{ color: t.fg }}>持仓下降与价格走弱多为移仓/common cause，「减仓」本身不构成下跌因果</b>。</p>
         </div>
       </div>
 
@@ -604,6 +680,60 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
         </div>
         <p className="text-[11px] text-[var(--muted)] mt-3 leading-relaxed">
           结论：<b style={{ color: t.fg }}>持仓对比必须在流动性可比的窗口起点做；持仓峰的节奏两组一样，差异来自价格峰位置</b>。高点持仓水位之所以判别力强，本质是价格峰出现时点的代理，只能事后确认、不能事前预判。
+        </p>
+      </Card>
+
+      {/* ============ 深度辨析③：持仓峰后减仓与价格走势 ============ */}
+      <Card tag="深度辨析 ③" title="持仓从最高峰往下减时，价格怎么走？——豆油跟跌，棕榈相反"
+        desc={`以每个合约持仓量的历史最高点为起点（t=0），观察峰后价格。共 ${dec.sample.total} 个历史样本（豆油 ${dec.sample.soy} / 棕榈 ${dec.sample.palm}），价格相对峰日收盘计算；进行中的 Y2701/P2701 单列对照、不计入统计。`}>
+        <div className="space-y-4">
+          <div>
+            <div className="text-sm font-semibold mb-1">事件研究：持仓见顶前后的平均价格路径</div>
+            <div className="text-xs text-[var(--muted)] mb-2">
+              各样本以持仓峰日价格=100 归一化后取横截面均值。纵轴固定在 90–108，<b>个位数涨跌幅如实呈现、不放大斜率</b>。
+            </div>
+            <ReactECharts option={declinePathOption} style={{ height: 340 }} opts={{ renderer: "svg" }} />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <div className="text-sm font-semibold mb-1">峰后 T+N：下跌样本占比</div>
+              <div className="text-xs text-[var(--muted)] mb-2">虚线为 50%（抛硬币基准）。豆油峰后短期下跌概率显著偏高，棕榈随期限拉长反而转涨。</div>
+              <ReactECharts option={declineHorizonOption} style={{ height: 280 }} opts={{ renderer: "svg" }} />
+            </div>
+            <div>
+              <div className="text-sm font-semibold mb-1">减仓到一定程度时，价格已走了多少</div>
+              <div className="text-xs text-[var(--muted)] mb-2">从峰顶累计减仓 10/20/30/50% 那一刻，价格相对峰日收盘的均值。跌幅集中在减仓早期，越往后越钝化。</div>
+              <ReactECharts option={declineDepthOption} style={{ height: 280 }} opts={{ renderer: "svg" }} />
+            </div>
+          </div>
+          <div className="rounded-lg p-3" style={{ background: "var(--card-hover)", borderLeft: "3px solid var(--primary)" }}>
+            <div className="text-sm font-bold mb-2">当前合约 Y2701 / P2701 处在什么位置</div>
+            <div className="text-xs space-y-2 leading-relaxed">
+              {dec.current.map((c) => (
+                <p key={c.sym}>
+                  <b>{c.sym}</b>：持仓峰 <b>{c.peakDate}</b>（窗口进度 {c.progress}%，属早见顶），此后 {c.after} 个交易日已减仓 <b style={{ color: RED }}>{c.declined}%</b>，
+                  价格自峰 <b style={{ color: colorOf(c.priceFromPeak) }}>{pct(c.priceFromPeak)}</b>
+                  {c.t.length >= 3 && <>；其中峰后 T+20 价格 {pct(c.t.find((x) => x.n === 20)?.px ?? 0)}、持仓 {pct(c.t.find((x) => x.n === 20)?.oi ?? 0)}</>}。
+                  同品种、持仓峰进度 &lt;30% 的历史相似案例 {c.similar.length} 个，T+20 价格多数下跌。
+                </p>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {dec.horizons.map((h) => (
+              <div key={h.n} className="rounded-lg p-3" style={{ background: "var(--card-hover)" }}>
+                <div className="text-xs text-[var(--muted)] mb-1">持仓峰后 T+{h.n}</div>
+                <div className="flex justify-between text-xs"><span>豆油下跌</span><b style={{ color: RED }}>{h.soy.downRate}% <span className="font-normal text-[var(--muted)]">({h.soy.down}/{h.soy.n})</span></b></div>
+                <div className="flex justify-between text-xs mt-1"><span>棕榈下跌</span><b style={{ color: "#185FA5" }}>{h.palm.downRate}% <span className="font-normal text-[var(--muted)]">({h.palm.down}/{h.palm.n})</span></b></div>
+                <div className="flex justify-between text-xs mt-1"><span>均值 豆/棕</span><b>{pct(h.soy.avg ?? 0)} / {pct(h.palm.avg ?? 0)}</b></div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="text-[11px] text-[var(--muted)] mt-3 leading-relaxed">
+          <b style={{ color: t.fg }}>结论与边界：</b>{dec.note}
+          持仓峰 vs 价格峰：豆油 {dec.sequence.soy.oiFirst}/{dec.sequence.soy.n} 例持仓先见顶（晚 {dec.sequence.soy.avgLag} 交易日），棕榈 {dec.sequence.palm.oiFirst}/{dec.sequence.palm.n} 例（晚 {dec.sequence.palm.avgLag} 交易日）。
+          日度减仓择时 AUC（未来20日）豆油 {dec.timing[2].soy.auc} / 棕榈 {dec.timing[2].palm.auc} / 合计 {dec.timing[2].all.auc}，接近抛硬币——<b style={{ color: t.fg }}>「某天减仓」不能择时，「持仓见顶」才是阶段性信号，且两品种方向相反</b>。
         </p>
       </Card>
 

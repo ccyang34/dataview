@@ -288,7 +288,63 @@ table("oi_peak_position", "持仓峰进度与持仓峰-价格峰先后（早/晚
     { grp: "晚顶型", ...dd.peakPos.late },
   ]);
 
-// ========== 14. 例外样本 ==========
+// ========== 14. 持仓峰后减仓与价格走势 ==========
+const dec = RES.oiDecline;
+const stat = (s) => ({ n: s.n, down: s.down, down_rate: s.downRate, avg: s.avg, med: s.med });
+
+table("oi_decline_horizon", "持仓峰后 T+N 价格表现（相对峰日收盘，分品种/合计）",
+  [["t_days", "INTEGER"], ["oil", "TEXT"], ["n", "INTEGER"], ["down", "INTEGER"],
+   ["down_rate", "REAL"], ["avg_pct", "REAL"], ["med_pct", "REAL"]],
+  dec.horizons.flatMap((h) => [
+    { t_days: h.n, oil: "豆油", ...stat(h.soy) },
+    { t_days: h.n, oil: "棕榈油", ...stat(h.palm) },
+    { t_days: h.n, oil: "合计", ...stat(h.all) },
+  ]));
+
+table("oi_decline_by_contract", "持仓峰后价格表现按品种×合约细分（T+20/T+40）",
+  [["t_days", "INTEGER"], ["oil", "TEXT"], ["contract", "TEXT"], ["n", "INTEGER"],
+   ["down", "INTEGER"], ["down_rate", "REAL"], ["avg_pct", "REAL"], ["med_pct", "REAL"]],
+  dec.byContract.flatMap((h) => {
+    const map = { "01": ["豆油", h.soy01], "05": ["豆油", h.soy05], "09": ["豆油", h.soy09],
+      "p01": ["棕榈油", h.palm01], "p05": ["棕榈油", h.palm05], "p09": ["棕榈油", h.palm09] };
+    return Object.entries(map).map(([k, [oil, s]]) => ({ t_days: h.n, oil, contract: k.replace("p", ""), ...stat(s) }));
+  }));
+
+table("oi_decline_depth", "持仓自峰顶减仓 X% 时的价格表现（跌幅集中在减仓早期）",
+  [["drop_pct", "INTEGER"], ["oil", "TEXT"], ["n", "INTEGER"], ["down", "INTEGER"],
+   ["down_rate", "REAL"], ["avg_pct", "REAL"], ["med_pct", "REAL"]],
+  dec.drops.flatMap((d) => [
+    { drop_pct: d.drop, oil: "豆油", ...stat(d.soy) },
+    { drop_pct: d.drop, oil: "棕榈油", ...stat(d.palm) },
+  ]));
+
+table("oi_decline_event_path", "事件研究价格路径：持仓峰=100，峰前后交易日 -30~+60",
+  [["oil", "TEXT"], ["day_from_peak", "INTEGER"], ["price_norm", "REAL"]],
+  [...dec.path.soy.map(([d, v]) => ({ oil: "豆油", day_from_peak: d, price_norm: v })),
+   ...dec.path.palm.map(([d, v]) => ({ oil: "棕榈油", day_from_peak: d, price_norm: v }))]);
+
+table("oi_decline_timing", "日度减仓择时检验：减仓日 vs 增仓日后续收益（AUC≈0.5=无择时价值）",
+  [["future_days", "INTEGER"], ["oil", "TEXT"], ["dec_n", "INTEGER"], ["inc_n", "INTEGER"],
+   ["dec_avg_pct", "REAL"], ["inc_avg_pct", "REAL"], ["auc", "REAL"]],
+  dec.timing.flatMap((tm) => [
+    { future_days: tm.k, oil: "豆油", dec_n: tm.soy.decN, inc_n: tm.soy.incN, dec_avg_pct: tm.soy.decAvg, inc_avg_pct: tm.soy.incAvg, auc: tm.soy.auc },
+    { future_days: tm.k, oil: "棕榈油", dec_n: tm.palm.decN, inc_n: tm.palm.incN, dec_avg_pct: tm.palm.decAvg, inc_avg_pct: tm.palm.incAvg, auc: tm.palm.auc },
+    { future_days: tm.k, oil: "合计", dec_n: tm.all.decN, inc_n: tm.all.incN, dec_avg_pct: tm.all.decAvg, inc_avg_pct: tm.all.incAvg, auc: tm.all.auc },
+  ]));
+
+table("oi_decline_current", "当前进行中合约的持仓峰定位（Y2701/P2701，不计入历史统计）",
+  [["symbol", "TEXT"], ["peak_date", "TEXT"], ["peak_progress", "REAL"], ["after_days", "INTEGER"],
+   ["oi_peak", "REAL"], ["oi_now", "REAL"], ["declined_pct", "REAL"], ["price_from_peak_pct", "REAL"]],
+  dec.current.map((c) => ({ symbol: c.sym, peak_date: c.peakDate, peak_progress: c.progress, after_days: c.after,
+    oi_peak: c.oiPeak, oi_now: c.oiNow, declined_pct: c.declined, price_from_peak_pct: c.priceFromPeak })));
+
+table("oi_decline_similar", "当前合约的历史相似案例（同品种、持仓峰进度<30%）",
+  [["current_sym", "TEXT"], ["sym", "TEXT"], ["peak_date", "TEXT"], ["peak_progress", "REAL"],
+   ["px20_pct", "REAL"], ["px40_pct", "REAL"]],
+  dec.current.flatMap((c) => c.similar.map((s) => ({ current_sym: c.sym, sym: s.sym, peak_date: s.date,
+    peak_progress: s.progress, px20_pct: s.px20, px40_pct: s.px40 }))));
+
+// ========== 15. 例外样本 ==========
 table("exceptions", "例外样本：与整体规律相反的合约（用于稳健性核查）",
   [["symbol", "TEXT"], ["quantile", "REAL"], ["tag", "TEXT"], ["peak", "REAL"], ["end", "REAL"]],
   qs.exceptions.map((e) => ({ symbol: e.sym, quantile: e.q, tag: e.tag, peak: e.peak, end: e.end })));
