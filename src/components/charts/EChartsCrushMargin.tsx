@@ -8,11 +8,7 @@ import { CrushMarginData } from "@/lib/crush-margin";
 // Types for additional data
 export interface PositionData {
     date: string;
-    Y2505?: number;
-    Y2509?: number;
-    Y2601?: number;
-    Y2605?: number;
-    Y2609?: number;
+    [contract: string]: string | number | undefined;
 }
 
 export interface OilComparisonData {
@@ -25,6 +21,7 @@ export interface OilComparisonData {
 interface FullDashboardProps {
     data: CrushMarginData[];
     positionData?: PositionData[];
+    positionContracts?: string[];
     oilData?: OilComparisonData[];
     title?: string;
 }
@@ -100,6 +97,7 @@ function ChartCard({ title, accent, extra, children }: { title: string; accent: 
 export function EChartsCrushMargin({
     data,
     positionData,
+    positionContracts,
     oilData,
     title = "大豆压榨利润分析"
 }: FullDashboardProps) {
@@ -253,19 +251,26 @@ export function EChartsCrushMargin({
         ],
     });
 
+    // 合约名来自 API meta（不从首行取，首行只有最早上市的合约）
+    const positionNames = (positionContracts || []).length
+        ? positionContracts!
+        : [...new Set((positionData || []).flatMap(d => Object.keys(d).filter(k => /^Y\d{4}$/i.test(k))))];
+
     // ---------- 5. 持仓走势 ----------
     const getPositionOption = () => {
         const dates = (positionData || []).map(d => d.date);
         const priceMap = new Map(data.map(d => [d.date, d.soybeanOilPrice]));
         const spotMap = new Map(data.map(d => [d.date, d.soybeanOilPrice + d.soybeanOilBasis]));
-        const names = ["Y2505", "Y2509", "Y2601", "Y2605", "Y2609"];
+        const names = positionNames;
         const series: any[] = names.map((name, i) => ({
             name, type: "line", stack: "Total", showSymbol: false,
-            itemStyle: { color: C.positions[i] },
-            lineStyle: { color: C.positions[i], width: 1 },
-            areaStyle: { color: C.positions[i], opacity: 0.28 },
-            // @ts-ignore
-            data: positionData.map(d => d[name] || 0),
+            itemStyle: { color: C.positions[i % C.positions.length] },
+            lineStyle: { color: C.positions[i % C.positions.length], width: 1 },
+            areaStyle: { color: C.positions[i % C.positions.length], opacity: 0.28 },
+            data: (positionData || []).map(d => {
+                const v = d[name];
+                return typeof v === "number" ? v : undefined;
+            }),
         }));
         series.push({ name: "豆油期货(右)", type: "line", yAxisIndex: 1, showSymbol: false, symbol: "none",
             data: dates.map(d => priceMap.get(d)), itemStyle: { color: C.futuresPrice }, lineStyle: { color: C.futuresPrice, width: 1.5, type: "dashed" } });
@@ -351,7 +356,13 @@ export function EChartsCrushMargin({
                     </div>
                 </ChartCard>
 
-                <ChartCard title="中粮期货豆油空单持仓走势" accent={C.positions[0]}>
+                <ChartCard title="中粮期货豆油净持仓走势" accent={C.positions[0]}
+                    extra={
+                        <span className="text-[10px] text-[var(--muted)]">
+                            {positionNames.join(" · ")}
+                            {positionData && positionData.length ? ` · 截至 ${positionData[positionData.length - 1]?.date}` : ""}
+                        </span>
+                    }>
                     <div className="h-[240px] sm:h-[280px]">
                         <ReactECharts option={getPositionOption()} style={{ height: "100%", width: "100%" }}
                             opts={{ renderer: "svg" }} notMerge={true} />

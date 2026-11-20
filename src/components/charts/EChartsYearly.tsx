@@ -144,7 +144,7 @@ export function EChartsYearly({
         },
         series: [
             ...displayYears.map((year, idx) => ({
-                name: year.toString(), type: "line", symbol: "none", smooth: true,
+                name: year.toString(), type: "line", symbol: "none", smooth: true, connectNulls: true,
                 data: keys.map(md => grouped[md]?.[year]),
                 lineStyle: { color: colorFor(year), width: idx === 0 ? 2.4 : 1.6, opacity: idx === 0 ? 1 : .9 },
                 itemStyle: { color: colorFor(year) },

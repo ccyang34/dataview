@@ -18,6 +18,7 @@ const TIME_PERIODS = [
 export default function AnalysisPage() {
     const [rawData, setRawData] = useState<CrushMarginData[]>([]);
     const [positionData, setPositionData] = useState<PositionData[]>([]);
+    const [positionContracts, setPositionContracts] = useState<string[]>([]);
     const [oilData, setOilData] = useState<OilComparisonData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -43,7 +44,10 @@ export default function AnalysisPage() {
 
             if (positionRes.ok) {
                 const positionJson = await positionRes.json();
-                if (positionJson.success) setPositionData(positionJson.data || []);
+                if (positionJson.success) {
+                    setPositionData(positionJson.data || []);
+                    setPositionContracts(positionJson.meta?.contracts || []);
+                }
             }
             if (oilRes.ok) {
                 const oilJson = await oilRes.json();
@@ -139,6 +143,7 @@ export default function AnalysisPage() {
                     <EChartsCrushMargin
                         data={filteredMarginData}
                         positionData={filteredPositionData}
+                        positionContracts={positionContracts}
                         oilData={filteredOilData}
                         title={periodLabel}
                     />

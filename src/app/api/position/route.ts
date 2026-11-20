@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // 持仓数据接口
 interface PositionAPIResponse {
@@ -11,12 +12,21 @@ interface PositionAPIResponse {
     };
 }
 
-// 合约配置
-const CONTRACTS = ['Y2505', 'Y2509', 'Y2601', 'Y2605', 'Y2609'];
+/** 生成候选合约：当前年 ±2 年的 01/03/05/07/09/11 月合约 */
+function buildCandidates(): string[] {
+    const now = new Date();
+    const year = now.getFullYear();
+    const months = ["01", "03", "05", "07", "09", "11"];
+    const out: string[] = [];
+    for (let y = year - 2; y <= year + 1; y++) {
+        for (const m of months) out.push(`y${String(y).slice(2)}${m}`);
+    }
+    return out;
+}
 
-async function fetchPositionFromAPI(contract: string): Promise<{ dates: string[], positions: number[] } | null> {
+async function fetchPositionFromAPI(contract: string): Promise<{ contract: string; dates: string[]; positions: number[]; lastDate: string } | null> {
     const timestamp = Date.now();
-    const url = `https://www.jiaoyifamen.com/tools/api//position/interest-process?t=${timestamp}&type=Y&instrument=${contract.toLowerCase()}&seat=%E4%B8%AD%E7%B2%AE%E6%9C%9F%E8%B4%A7`;
+    const url = `https://www.jiaoyifamen.com/tools/api//position/interest-process?t=${timestamp}&type=Y&instrument=${contract}&seat=%E4%B8%AD%E7%B2%AE%E6%9C%9F%E8%B4%A7`;
 
     try {
         const response = await fetch(url, {
@@ -24,24 +34,16 @@ async function fetchPositionFromAPI(contract: string): Promise<{ dates: string[]
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Referer': 'https://www.jiaoyifamen.com/'
             },
-            next: { revalidate: 3600 } // Cache for 1 hour
+            cache: 'no-store',
+            signal: AbortSignal.timeout(15000),
         });
-
-        if (!response.ok) {
-            console.error(`Position API error for ${contract}: ${response.status}`);
-            return null;
-        }
-
+        if (!response.ok) return null;
         const data: PositionAPIResponse = await response.json();
-
-        if (data.code !== 200 || !data.data) {
-            return null;
-        }
-
-        return {
-            dates: data.data.category || [],
-            positions: data.data.neatPosition || []
-        };
+        if (data.code !== 200 || !data.data) return null;
+        const dates = data.data.category || [];
+        const positions = data.data.neatPosition || [];
+        if (dates.length < 30 || dates.length !== positions.length) return null;
+        return { contract, dates, positions, lastDate: dates[dates.length - 1] || "" };
     } catch (error) {
         console.error(`Error fetching position for ${contract}:`, error);
         return null;
@@ -50,60 +52,49 @@ async function fetchPositionFromAPI(contract: string): Promise<{ dates: string[]
 
 export async function GET() {
     try {
-        console.log("Fetching COFCO position data...");
+        // 并发探测所有候选合约
+        const results = (await Promise.all(buildCandidates().map(fetchPositionFromAPI))).filter(Boolean) as {
+            contract: string; dates: string[]; positions: number[]; lastDate: string
+        }[];
 
-        // Fetch all contracts in parallel
-        const results = await Promise.all(
-            CONTRACTS.map(async (contract) => {
-                const data = await fetchPositionFromAPI(contract);
-                return { contract, data };
-            })
-        );
+        // 按最后数据日期降序，取最新的 5 个（跟随主力滚动，不再写死合约）
+        results.sort((a, b) => b.lastDate.localeCompare(a.lastDate));
+        const active = results.slice(0, 5);
+        const contracts = active.map(r => r.contract.toUpperCase());
+        if (contracts.length === 0) throw new Error("No active contracts found");
 
-        // Collect all unique dates
         const allDatesSet = new Set<string>();
         const contractDataMap = new Map<string, Map<string, number>>();
-
-        for (const { contract, data } of results) {
-            if (data && data.dates.length > 0) {
-                const posMap = new Map<string, number>();
-                for (let i = 0; i < data.dates.length; i++) {
-                    const date = data.dates[i];
-                    const pos = Math.abs(data.positions[i] || 0); // Take absolute value
-                    allDatesSet.add(date);
-                    posMap.set(date, pos);
-                }
-                contractDataMap.set(contract, posMap);
+        for (const r of active) {
+            const posMap = new Map<string, number>();
+            for (let i = 0; i < r.dates.length; i++) {
+                const pos = Math.abs(r.positions[i] || 0); // 取绝对值：净持仓方向不影响规模堆叠
+                allDatesSet.add(r.dates[i]);
+                posMap.set(r.dates[i], pos);
             }
+            contractDataMap.set(r.contract.toUpperCase(), posMap);
         }
 
-        // Sort dates
         const sortedDates = Array.from(allDatesSet).sort();
-
-        // Build result array
         const positionData = sortedDates.map(date => {
             const row: Record<string, string | number | undefined> = { date };
-            for (const contract of CONTRACTS) {
+            for (const contract of contracts) {
                 const posMap = contractDataMap.get(contract);
-                if (posMap && posMap.has(date)) {
-                    row[contract] = posMap.get(date);
-                }
+                if (posMap?.has(date)) row[contract] = posMap.get(date);
             }
             return row;
         });
-
-        console.log(`Fetched position data: ${positionData.length} records`);
 
         return NextResponse.json({
             success: true,
             data: positionData,
             meta: {
                 count: positionData.length,
-                contracts: CONTRACTS,
+                contracts,
+                latestDate: sortedDates[sortedDates.length - 1] || null,
                 updatedAt: new Date().toISOString()
             }
         });
-
     } catch (error) {
         console.error("Position API Error:", error);
         return NextResponse.json(
