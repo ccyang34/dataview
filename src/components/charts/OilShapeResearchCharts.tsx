@@ -29,9 +29,9 @@ function useThemeColors() {
   return t;
 }
 
-function Card({ title, children, desc, tag }: { title: string; children: React.ReactNode; desc?: React.ReactNode; tag?: string }) {
+function Card({ title, children, desc, tag, id }: { title: string; children: React.ReactNode; desc?: React.ReactNode; tag?: string; id?: string }) {
   return (
-    <div className="card p-4 sm:p-5 mb-4">
+    <div id={id} className="card p-4 sm:p-5 mb-4" style={{ scrollMarginTop: 92 }}>
       <div className="flex items-center gap-2 mb-1 flex-wrap">
         <h3 className="text-base sm:text-lg font-semibold">{title}</h3>
         {tag && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--card-hover)] text-[var(--muted)] font-medium">{tag}</span>}
@@ -39,6 +39,115 @@ function Card({ title, children, desc, tag }: { title: string; children: React.R
       {desc && <div className="text-xs text-[var(--muted)] mb-3 leading-relaxed">{desc}</div>}
       {children}
     </div>
+  );
+}
+
+/** 报告目录：按逻辑分组的章节锚点 */
+const TOC: { id: string; label: string; group: string }[] = [
+  { id: "tldr", label: "核心结论", group: "先看这里" },
+  { id: "origin", label: "观察起点", group: "形态探索" },
+  { id: "shape-validation", label: "形态验证 44/44", group: "形态探索" },
+  { id: "shape-groups", label: "早顶 vs 晚顶", group: "形态探索" },
+  { id: "shape-paths", label: "两条真实路径", group: "形态探索" },
+  { id: "early-features", label: "早期走势能预判吗", group: "预判信号" },
+  { id: "quantile", label: "期初价历史分位", group: "预判信号" },
+  { id: "month-jump", label: "7→8月跳涨", group: "预判信号" },
+  { id: "oi-analysis", label: "持仓量二次分析", group: "持仓分析" },
+  { id: "oi-caliber", label: "辨析① 两种同期口径", group: "持仓分析" },
+  { id: "oi-sametime", label: "辨析② 同刻证伪与峰位", group: "持仓分析" },
+  { id: "oi-decline", label: "辨析③ 峰后减仓与价格", group: "持仓分析" },
+  { id: "forecast", label: "2705 形态预判", group: "结论与附录" },
+  { id: "method", label: "口径、局限与更新", group: "结论与附录" },
+  { id: "appendix", label: "全部样本明细", group: "结论与附录" },
+];
+
+/** 报告快速导航：桌面左侧 sticky 目录，移动端顶部下拉；滚动自动高亮当前章节 */
+function ReportToc() {
+  const [active, setActive] = useState(TOC[0].id);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      // 找到当前视口顶部之上最后一个已越过的锚点
+      let cur = TOC[0].id;
+      for (const item of TOC) {
+        const el = document.getElementById(item.id);
+        if (el && el.getBoundingClientRect().top <= 120) cur = item.id;
+      }
+      setActive(cur);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const go = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 88, behavior: "smooth" });
+    setActive(id);
+    setOpen(false);
+  };
+
+  const groups = TOC.reduce<Record<string, typeof TOC>>((acc, item) => {
+    (acc[item.group] ||= []).push(item);
+    return acc;
+  }, {});
+
+  return (
+    <>
+      {/* 桌面：左侧竖排目录 */}
+      <aside className="hidden lg:block w-52 shrink-0">
+        <div className="sticky" style={{ top: 92 }}>
+          <div className="text-[11px] font-semibold tracking-widest uppercase text-[var(--muted)] mb-2 px-2">快速导航</div>
+          <nav className="space-y-3">
+            {Object.entries(groups).map(([group, items]) => (
+              <div key={group}>
+                <div className="text-[10px] text-[var(--muted)] px-2 mb-1 opacity-70">{group}</div>
+                <div className="space-y-0.5">
+                  {items.map((item) => (
+                    <button key={item.id} onClick={() => go(item.id)}
+                      className="w-full text-left text-xs px-2 py-1.5 rounded transition-colors cursor-pointer"
+                      style={{
+                        color: active === item.id ? "var(--primary)" : "var(--muted)",
+                        background: active === item.id ? "var(--card-hover)" : "transparent",
+                        fontWeight: active === item.id ? 600 : 400,
+                        borderLeft: active === item.id ? "2px solid var(--primary)" : "2px solid transparent",
+                      }}>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </nav>
+        </div>
+      </aside>
+
+      {/* 移动端：顶部下拉 */}
+      <div className="lg:hidden mb-4">
+        <button onClick={() => setOpen((v) => !v)}
+          className="btn btn-secondary w-full flex items-center justify-between px-3 py-2 text-xs cursor-pointer">
+          <span>快速导航 · <b style={{ color: "var(--primary)" }}>{TOC.find((x) => x.id === active)?.label}</b></span>
+          <span>{open ? "收起 ▲" : "展开 ▼"}</span>
+        </button>
+        {open && (
+          <div className="card mt-2 p-2 grid grid-cols-2 gap-1">
+            {TOC.map((item) => (
+              <button key={item.id} onClick={() => go(item.id)}
+                className="text-left text-xs px-2 py-1.5 rounded cursor-pointer"
+                style={{
+                  color: active === item.id ? "var(--primary)" : "var(--muted)",
+                  background: active === item.id ? "var(--card-hover)" : "transparent",
+                  fontWeight: active === item.id ? 600 : 400,
+                }}>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -334,9 +443,11 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
   const tagColor: Record<string, string> = { 晚顶: "#B5D4F4", 早顶: "#FAC775", 中间: "#D3D1C7" };
 
   return (
-    <div>
+    <div className="flex flex-col lg:flex-row gap-6">
+      <ReportToc />
+      <div className="flex-1 min-w-0">
       {/* ============ TL;DR ============ */}
-      <div className="card p-4 sm:p-5 mb-5" style={{ borderLeft: "3px solid var(--primary)" }}>
+      <div id="tldr" className="card p-4 sm:p-5 mb-5" style={{ borderLeft: "3px solid var(--primary)", scrollMarginTop: 92 }}>
         <h2 className="text-lg sm:text-xl font-bold mb-3">核心结论（先看这里）</h2>
         <div className="space-y-2 text-sm leading-relaxed">
           <p><b>1. 你的观察完全成立，而且是 100%：</b>44 个合约年中，<b style={{ color: RED }}>{sv.aboveStart}/{sv.total}</b> 都曾高于期初、<b style={{ color: RED }}>{sv.pullback}/{sv.total}</b> 都有回落——「先走高再走低」没有例外。</p>
@@ -350,7 +461,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
       </div>
 
       {/* ============ 序章 ============ */}
-      <Card tag="探索起点" title="从一句话观察开始" desc="这份报告记录了一次完整的验证过程：从直觉观察，到用数据逐层证伪/证实，最后落到一个可执行的预判。">
+      <Card id="origin" tag="探索起点" title="从一句话观察开始" desc="这份报告记录了一次完整的验证过程：从直觉观察，到用数据逐层证伪/证实，最后落到一个可执行的预判。">
         <p className="text-sm leading-relaxed">
           起点是一个朴素的盘面观察：<b>每个合约从期初建仓，会缓慢上升（多寡不论），到高点后回落——回落可能低于期初，也可能仍高于期初；大部分走势都是先走高再走低，个别极端合约除外。</b>
         </p>
@@ -358,7 +469,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
       </Card>
 
       {/* ============ 第一步 ============ */}
-      <Card tag="第一步" title="形态验证：先高后低，44/44 成立" desc={`把豆油+棕榈油全部 ${sv.total} 个合约年逐一检查：窗口内是否曾高于期初、是否在终点前见顶、是否出现回落。`}>
+      <Card id="shape-validation" tag="第一步" title="形态验证：先高后低，44/44 成立" desc={`把豆油+棕榈油全部 ${sv.total} 个合约年逐一检查：窗口内是否曾高于期初、是否在终点前见顶、是否出现回落。`}>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           {[
             { lab: "样本合约年", val: sv.total, note: "豆油22 + 棕榈油22" },
@@ -376,7 +487,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
         <div className="text-xs text-[var(--muted)] mb-2">结论：观察成立，且几乎没有例外。真正的差异不在「会不会先高后低」，而在「高点出现在窗口哪个位置」。</div>
       </Card>
 
-      <Card tag="第一步 · 续" title="形态分叉：早顶型 vs 晚顶型" desc="按峰值出现在窗口的进度位置分组（<50% 早顶、≥80% 晚顶、其余中间）。同样先高后低，收益结果天差地别。">
+      <Card id="shape-groups" tag="第一步 · 续" title="形态分叉：早顶型 vs 晚顶型" desc="按峰值出现在窗口的进度位置分组（<50% 早顶、≥80% 晚顶、其余中间）。同样先高后低，收益结果天差地别。">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div>
             <ReactECharts option={groupOption} style={{ height: 280, width: "100%" }} notMerge opts={{ renderer: "svg" }} />
@@ -407,12 +518,12 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
         </div>
       </Card>
 
-      <Card tag="第一步 · 实证" title="两条真实路径：同为「先高后低」，结局相反" desc="Y2001（晚顶，末+16%）与 Y2005（早顶，末-13%）的实际归一化逐日路径，横轴为窗口交易日进度。">
+      <Card id="shape-paths" tag="第一步 · 实证" title="两条真实路径：同为「先高后低」，结局相反" desc="Y2001（晚顶，末+16%）与 Y2005（早顶，末-13%）的实际归一化逐日路径，横轴为窗口交易日进度。">
         <ReactECharts option={pathOption} style={{ height: 300, width: "100%" }} notMerge opts={{ renderer: "svg" }} />
       </Card>
 
       {/* ============ 第二步 ============ */}
-      <Card tag="第二步" title="早期走势能预判吗？——不能（AUC ≈ 抛硬币）" desc="尝试用窗口前 3/5/7/10/20 日涨幅、振幅、波动率、是否跌破开盘等 11 个特征预判早/晚顶。AUC=0.5 表示毫无信息。">
+      <Card id="early-features" tag="第二步" title="早期走势能预判吗？——不能（AUC ≈ 抛硬币）" desc="尝试用窗口前 3/5/7/10/20 日涨幅、振幅、波动率、是否跌破开盘等 11 个特征预判早/晚顶。AUC=0.5 表示毫无信息。">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div><ReactECharts option={aucOption} style={{ height: 300, width: "100%" }} notMerge opts={{ renderer: "svg" }} /></div>
           <div>
@@ -437,7 +548,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
       </Card>
 
       {/* ============ 第三步 ============ */}
-      <Card tag="第三步 · 关键发现" title="找到信号：期初价在历史中的位置" desc="不用看走势，只看合约期初的绝对价在该合约历史样本中的分位（0%=历史最低，100%=历史最高）。">
+      <Card id="quantile" tag="第三步 · 关键发现" title="找到信号：期初价在历史中的位置" desc="不用看走势，只看合约期初的绝对价在该合约历史样本中的分位（0%=历史最低，100%=历史最高）。">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div><ReactECharts option={bandOption} style={{ height: 300, width: "100%" }} notMerge opts={{ renderer: "svg" }} /></div>
           <div className="overflow-x-auto">
@@ -477,7 +588,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
       </Card>
 
       {/* ============ 补充发现 ============ */}
-      <Card tag="补充发现" title="7→8 月的跳涨：最干净的季节性信号" desc="09 合约窗口（4~9月）中，7 月末→8 月末这一段，豆油与棕榈油各自 7 个样本年全部为正。">
+      <Card id="month-jump" tag="补充发现" title="7→8 月的跳涨：最干净的季节性信号" desc="09 合约窗口（4~9月）中，7 月末→8 月末这一段，豆油与棕榈油各自 7 个样本年全部为正。">
         <ReactECharts option={jumpOption} style={{ height: 280, width: "100%" }} notMerge opts={{ renderer: "svg" }} />
         <p className="text-[11px] text-[var(--muted)] mt-2">
           豆油均值 <b style={{ color: RED }}>+{mj.avgSoy}%</b>、棕榈油 <b style={{ color: RED }}>+{mj.avgPalm}%</b>；{mj.allPositive ? "14/14 年全部为正" : "多数年份为正"}。农产品季节性里这种一致性罕见——但注意这是平均路径，仍需结合上面的形态判断。
@@ -485,7 +596,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
       </Card>
 
       {/* ============ 二次分析：持仓量 ============ */}
-      <Card tag="二次分析" title="加入持仓量：有效的是「期初持仓同比」，不是持仓曲线" desc={`新浪日线的每日持仓量并入全部 ${oi.coverage.withOi} 个合约年。先证伪直觉（持仓曲线无预判力），再给出真正有效的事前信号，并与期初价分位交叉。`}>
+      <Card id="oi-analysis" tag="二次分析" title="加入持仓量：有效的是「期初持仓同比」，不是持仓曲线" desc={`新浪日线的每日持仓量并入全部 ${oi.coverage.withOi} 个合约年。先证伪直觉（持仓曲线无预判力），再给出真正有效的事前信号，并与期初价分位交叉。`}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div>
             <ReactECharts option={oiCurveOption} style={{ height: 300, width: "100%" }} notMerge opts={{ renderer: "svg" }} />
@@ -566,7 +677,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
       </Card>
 
       {/* ============ 持仓深度辨析①：两个「历史同期」 ============ */}
-      <Card tag="深度辨析 ①" title="早顶持仓真的高于历史同期吗？——两种口径，答案相反"
+      <Card id="oi-caliber" tag="深度辨析 ①" title="早顶持仓真的高于历史同期吗？——两种口径，答案相反"
         desc="「历史同期」有两种合理定义：相对上一交割年同合约（同比），或在同品种同合约 7–8 年样本中排位。两者结论不同，必须说清口径。">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -617,7 +728,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
       </Card>
 
       {/* ============ 持仓深度辨析②：同刻证伪 + 峰位节奏 ============ */}
-      <Card tag="深度辨析 ②" title="顶部当天与去年同一天比？——伪信号；持仓峰也没更早"
+      <Card id="oi-sametime" tag="深度辨析 ②" title="顶部当天与去年同一天比？——伪信号；持仓峰也没更早"
         desc="把「同期」理解成顶部所在的日历日（如 09 合约顶部 8–9 日），今年顶那天 vs 去年顶那天；再检验早顶合约的持仓峰是否提前到来。">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -684,7 +795,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
       </Card>
 
       {/* ============ 深度辨析③：持仓峰后减仓与价格走势 ============ */}
-      <Card tag="深度辨析 ③" title="持仓从最高峰往下减时，价格怎么走？——豆油跟跌，棕榈相反"
+      <Card id="oi-decline" tag="深度辨析 ③" title="持仓从最高峰往下减时，价格怎么走？——豆油跟跌，棕榈相反"
         desc={`以每个合约持仓量的历史最高点为起点（t=0），观察峰后价格。共 ${dec.sample.total} 个历史样本（豆油 ${dec.sample.soy} / 棕榈 ${dec.sample.palm}），价格相对峰日收盘计算；进行中的 Y2701/P2701 单列对照、不计入统计。`}>
         <div className="space-y-4">
           <div>
@@ -738,7 +849,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
       </Card>
 
       {/* ============ 第四步：预测 2705 ============ */}
-      <Card tag="最终预测" title="2705 合约形态预判" desc={`05 合约窗口 12 月才开始，当前用 11 月中旬价作起点代理。历史校准 Spearman ρ：豆油 ${fc.calibration.soyRho}、棕榈油 ${fc.calibration.palmRho}——代理价分位排序几乎无损。`}>
+      <Card id="forecast" tag="最终预测" title="2705 合约形态预判" desc={`05 合约窗口 12 月才开始，当前用 11 月中旬价作起点代理。历史校准 Spearman ρ：豆油 ${fc.calibration.soyRho}、棕榈油 ${fc.calibration.palmRho}——代理价分位排序几乎无损。`}>
         <QuantileBar
           label="豆油 Y2705" price={fc.contracts.Y2705.price} q={fc.contracts.Y2705.quantile}
           note={`距挂牌高点 ${fc.contracts.Y2705.offHigh}%；低位启动偏晚顶，高位偏早顶`}
@@ -782,7 +893,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
       </Card>
 
       {/* ============ 局限与方法 ============ */}
-      <Card tag="方法说明" title="口径、局限与更新" desc="让结论可被质疑，也要说清边界。">
+      <Card id="method" tag="方法说明" title="口径、局限与更新" desc="让结论可被质疑，也要说清边界。">
         <div className="text-xs text-[var(--muted)] space-y-2 leading-relaxed">
           <p><b style={{ color: t.fg }}>形态定义：</b>早顶=峰值出现在窗口前 50%，晚顶=后 20%，中间=其余；峰值=窗口内最高价 high，末值=窗口最后交易日收盘。归一化基准为窗口起始交易日收盘=100。</p>
           <p><b style={{ color: t.fg }}>期初价分位：</b>合约期初绝对价在同品种、同月份合约 7–8 年样本中的百分位。这是相对小样本，历史窗口变化会改变数值。</p>
@@ -794,7 +905,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
       </Card>
 
       {/* ============ 附录：全样本 ============ */}
-      <Card tag="附录" title={`全部 ${allRows.length} 个合约年样本`} desc="可核对的逐条明细：按品种/合约/交割年列出峰位、形态、峰涨幅、末涨幅、回落、期初价分位、高点持仓与持仓同比。">
+      <Card id="appendix" tag="附录" title={`全部 ${allRows.length} 个合约年样本`} desc="可核对的逐条明细：按品种/合约/交割年列出峰位、形态、峰涨幅、末涨幅、回落、期初价分位、高点持仓与持仓同比。">
         <div className="max-h-[420px] overflow-auto">
           <table className="w-full text-xs">
             <thead className="sticky top-0" style={{ background: "var(--card)" }}>
@@ -822,6 +933,7 @@ export function OilShapeResearchCharts({ data }: { data: OilShapeResearchData })
           </table>
         </div>
       </Card>
+      </div>
     </div>
   );
 }
