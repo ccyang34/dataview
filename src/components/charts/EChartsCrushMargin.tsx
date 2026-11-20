@@ -262,20 +262,37 @@ export function EChartsCrushMargin({
         const priceMap = new Map(data.map(d => [d.date, d.soybeanOilPrice]));
         const spotMap = new Map(data.map(d => [d.date, d.soybeanOilPrice + d.soybeanOilBasis]));
         const names = positionNames;
-        const series: any[] = names.map((name, i) => ({
-            name, type: "line", stack: "Total", showSymbol: false,
-            itemStyle: { color: C.positions[i % C.positions.length] },
-            lineStyle: { color: C.positions[i % C.positions.length], width: 1 },
-            areaStyle: { color: C.positions[i % C.positions.length], opacity: 0.28 },
-            data: (positionData || []).map(d => {
+
+        // 上游接口在某些交易日只返回部分合约数据（如主力缺失），堆叠时塌到 0 形成垂直尖峰。
+        // 处理：合约生命周期内（首次~末次出现）缺失日沿用前值；上市前/退市后保持 undefined。
+        const ffillInSpan = (raw: (number | undefined)[]): (number | undefined)[] => {
+            const valid = raw.map((v, i) => v != null ? i : -1).filter(i => i >= 0);
+            if (!valid.length) return raw;
+            const first = valid[0], last = valid[valid.length - 1];
+            let carry: number | undefined;
+            return raw.map((v, i) => {
+                if (v != null) { carry = v; return v; }
+                return i >= first && i <= last ? carry : undefined;
+            });
+        };
+
+        const series: any[] = names.map((name, i) => {
+            const raw = (positionData || []).map(d => {
                 const v = d[name];
                 return typeof v === "number" ? v : undefined;
-            }),
-        }));
+            });
+            return {
+                name, type: "line", stack: "Total", showSymbol: false, connectNulls: false,
+                itemStyle: { color: C.positions[i % C.positions.length] },
+                lineStyle: { color: C.positions[i % C.positions.length], width: 1 },
+                areaStyle: { color: C.positions[i % C.positions.length], opacity: 0.28 },
+                data: ffillInSpan(raw),
+            };
+        });
         series.push({ name: "豆油期货(右)", type: "line", yAxisIndex: 1, showSymbol: false, symbol: "none",
-            data: dates.map(d => priceMap.get(d)), itemStyle: { color: C.futuresPrice }, lineStyle: { color: C.futuresPrice, width: 1.5, type: "dashed" } });
+            data: ffillInSpan(dates.map(d => priceMap.get(d))), itemStyle: { color: C.futuresPrice }, lineStyle: { color: C.futuresPrice, width: 1.5, type: "dashed" } });
         series.push({ name: "豆油现货(右)", type: "line", yAxisIndex: 1, showSymbol: false, symbol: "none",
-            data: dates.map(d => spotMap.get(d)), itemStyle: { color: C.spotPrice }, lineStyle: { color: C.spotPrice, width: 1.5, type: "dashed" } });
+            data: ffillInSpan(dates.map(d => spotMap.get(d))), itemStyle: { color: C.spotPrice }, lineStyle: { color: C.spotPrice, width: 1.5, type: "dashed" } });
         return {
             backgroundColor: "transparent", textStyle: { color: t.fg }, tooltip: tooltip(),
             legend: legend([...names, "豆油期货(右)", "豆油现货(右)"]),
@@ -361,6 +378,7 @@ export function EChartsCrushMargin({
                         <span className="text-[10px] text-[var(--muted)]">
                             {positionNames.join(" · ")}
                             {positionData && positionData.length ? ` · 截至 ${positionData[positionData.length - 1]?.date}` : ""}
+                            <span className="ml-1 opacity-70">（缺值按前值填补）</span>
                         </span>
                     }>
                     <div className="h-[240px] sm:h-[280px]">
