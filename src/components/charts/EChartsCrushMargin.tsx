@@ -79,9 +79,9 @@ const fmtDate = (dateStr: string) => {
 const n0 = (v: number | undefined | null) => v == null || Number.isNaN(v) ? "-" : Math.round(v).toLocaleString();
 
 /** 通用图表卡片：统一标题栏 + 图表区 */
-function ChartCard({ title, accent, extra, children }: { title: string; accent: string; extra?: React.ReactNode; children: React.ReactNode }) {
+function ChartCard({ title, accent, extra, children, id }: { title: string; accent: string; extra?: React.ReactNode; children: React.ReactNode; id?: string }) {
     return (
-        <div className="card p-3 sm:p-4">
+        <div id={id} className="card p-3 sm:p-4" style={{ scrollMarginTop: 92 }}>
             <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                 <h3 className="font-semibold text-sm flex items-center gap-2">
                     <span className="w-1 h-4 rounded" style={{ backgroundColor: accent }} />
@@ -327,7 +327,7 @@ export function EChartsCrushMargin({
     return (
         <div className="space-y-4">
             {/* KPI 概览 */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div id="kpi" className="grid grid-cols-2 lg:grid-cols-4 gap-3" style={{ scrollMarginTop: 92 }}>
                 {kpis.map(k => (
                     <div key={k.label} className="card p-3 sm:p-4">
                         <div className="text-xs text-[var(--muted)] mb-1">{k.label}</div>
@@ -341,7 +341,7 @@ export function EChartsCrushMargin({
             </div>
 
             {/* 1. 榨利主图（独占整行） */}
-            <ChartCard title={`压榨利润走势 · ${title}`} accent={C.gross}
+            <ChartCard id="margin" title={`压榨利润走势 · ${title}`} accent={C.gross}
                 extra={<span className="text-[11px] text-[var(--muted)] tabular-nums">最高 {n0(marginMax)} · 最低 {n0(marginMin)}</span>}>
                 <div className="h-[260px] sm:h-[340px]">
                     <ReactECharts option={getMarginOption()} style={{ height: "100%", width: "100%" }}
@@ -351,7 +351,7 @@ export function EChartsCrushMargin({
 
             {/* 2-5. 四图两列网格 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <ChartCard title={`基差走势 & 油粕比 · ${currentBasisData.spotOilMealRatio.toFixed(3)}`} accent={C.ratio}
+                <ChartCard id="basis" title={`基差走势 & 油粕比 · ${currentBasisData.spotOilMealRatio.toFixed(3)}`} accent={C.ratio}
                     extra={activeBasisData && <span className="text-[10px] text-[var(--muted)]">{activeBasisData.date}</span>}>
                     <div className="h-[240px] sm:h-[280px]">
                         <ReactECharts option={getBasisOption()} style={{ height: "100%", width: "100%" }}
@@ -359,21 +359,21 @@ export function EChartsCrushMargin({
                     </div>
                 </ChartCard>
 
-                <ChartCard title="油脂板块价格对比（豆 · 棕 · 菜）" accent={C.palm}>
+                <ChartCard id="oil" title="油脂板块价格对比（豆 · 棕 · 菜）" accent={C.palm}>
                     <div className="h-[240px] sm:h-[280px]">
                         <ReactECharts option={getOilComparisonOption()} style={{ height: "100%", width: "100%" }}
                             opts={{ renderer: "svg" }} notMerge={true} />
                     </div>
                 </ChartCard>
 
-                <ChartCard title="期货价格走势（双轴）" accent={C.soybeanOil}>
+                <ChartCard id="futures" title="期货价格走势（双轴）" accent={C.soybeanOil}>
                     <div className="h-[240px] sm:h-[280px]">
                         <ReactECharts option={getFuturesOption()} style={{ height: "100%", width: "100%" }}
                             opts={{ renderer: "svg" }} notMerge={true} />
                     </div>
                 </ChartCard>
 
-                <ChartCard title="中粮期货豆油净持仓走势" accent={C.positions[0]}
+                <ChartCard id="position" title="中粮期货豆油净持仓走势" accent={C.positions[0]}
                     extra={
                         <span className="text-[10px] text-[var(--muted)]">
                             {positionNames.join(" · ")}

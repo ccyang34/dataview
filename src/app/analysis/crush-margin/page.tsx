@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { EChartsCrushMargin, PositionData, OilComparisonData } from "@/components/charts/EChartsCrushMargin";
 import { EChartsYearly, YearlyDataPoint } from "@/components/charts/EChartsYearly";
+import { ReportToc, TocItem } from "@/components/charts/ReportToc";
 import { CrushMarginData } from "@/lib/crush-margin";
 import { RefreshCw, Calendar, Info, Database } from "lucide-react";
 
@@ -13,6 +14,17 @@ const TIME_PERIODS = [
     { label: "一年", days: 365 },
     { label: "两年", days: 730 },
     { label: "全部", days: 9999 },
+];
+
+const TOC: TocItem[] = [
+    { id: "kpi", label: "关键指标", group: "先看这里" },
+    { id: "margin", label: "压榨利润走势", group: "榨利与基差" },
+    { id: "basis", label: "基差走势 & 油粕比", group: "榨利与基差" },
+    { id: "oil", label: "油脂板块价格对比", group: "榨利与基差" },
+    { id: "futures", label: "期货价格走势", group: "榨利与基差" },
+    { id: "position", label: "豆油净持仓", group: "榨利与基差" },
+    { id: "method", label: "计算口径与数据源", group: "年度与口径" },
+    { id: "yearly", label: "年度复合对比", group: "年度与口径" },
 ];
 
 export default function AnalysisPage() {
@@ -140,6 +152,9 @@ export default function AnalysisPage() {
                 )}
 
                 {!loading && !error && (
+                  <div className="flex flex-col lg:flex-row gap-5">
+                    <ReportToc items={TOC} />
+                    <div className="flex-1 min-w-0">
                     <EChartsCrushMargin
                         data={filteredMarginData}
                         positionData={filteredPositionData}
@@ -147,11 +162,10 @@ export default function AnalysisPage() {
                         oilData={filteredOilData}
                         title={periodLabel}
                     />
-                )}
 
                 {/* 说明 */}
                 {!loading && !error && (
-                    <div className="card p-3 sm:p-4 mt-6">
+                    <div id="method" className="card p-3 sm:p-4 mt-6" style={{ scrollMarginTop: 92 }}>
                         <div className="flex items-center gap-2 mb-2">
                             <Info className="w-4 h-4 text-[var(--primary)]" />
                             <h4 className="text-sm font-semibold">计算口径与数据源</h4>
@@ -167,7 +181,7 @@ export default function AnalysisPage() {
 
                 {/* 年度复合对比 */}
                 {!loading && !error && rawData.length > 0 && (
-                    <div className="mt-8">
+                    <div id="yearly" className="mt-8" style={{ scrollMarginTop: 92 }}>
                         <div className="flex items-center gap-2 mb-3">
                             <h2 className="text-base font-semibold">年度复合对比</h2>
                             <span className="text-[11px] text-[var(--muted)]">同一时间轴叠加多年，观察季节性规律</span>
@@ -180,6 +194,9 @@ export default function AnalysisPage() {
                             </div>
                         </div>
                     </div>
+                )}
+                    </div>
+                  </div>
                 )}
             </main>
         </div>

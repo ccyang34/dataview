@@ -3,8 +3,20 @@
 import { useEffect, useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { SoybeanOilCharts } from "@/components/charts/SoybeanOilCharts";
+import { ReportToc, TocItem } from "@/components/charts/ReportToc";
 import { SoybeanOilData } from "@/lib/soybean-oil-y01";
 import { RefreshCw, Database, Clock } from "lucide-react";
+
+const TOC: TocItem[] = [
+  { id: "tldr", label: "核心结论", group: "先看这里" },
+  { id: "kpi", label: "关键指标", group: "先看这里" },
+  { id: "chart1", label: "① 历年窗口走势", group: "走势对比" },
+  { id: "chart2", label: "② 平均路径对比", group: "走势对比" },
+  { id: "chart3", label: "③ 窗口涨跌幅", group: "走势对比" },
+  { id: "chart32", label: "③-2 起始→最高价", group: "走势对比" },
+  { id: "table", label: "④ 数据明细", group: "数据口径" },
+  { id: "method", label: "口径与方法说明", group: "数据口径" },
+];
 
 export default function SoybeanOilAnalysisPage() {
   const [data, setData] = useState<SoybeanOilData | null>(null);
@@ -71,7 +83,12 @@ export default function SoybeanOilAnalysisPage() {
           </div>
         )}
 
-        {!loading && !error && data && <SoybeanOilCharts data={data} />}
+        {!loading && !error && data && (
+          <div className="flex flex-col lg:flex-row gap-5">
+            <ReportToc items={TOC} />
+            <div className="flex-1 min-w-0"><SoybeanOilCharts data={data} /></div>
+          </div>
+        )}
       </main>
     </div>
   );

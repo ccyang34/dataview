@@ -30,9 +30,9 @@ function useThemeColors() {
   return t;
 }
 
-function Card({ title, children, desc, src }: { title: string; children: React.ReactNode; desc?: React.ReactNode; src?: string }) {
+function Card({ title, children, desc, src, id }: { title: string; children: React.ReactNode; desc?: React.ReactNode; src?: string; id?: string }) {
   return (
-    <div className="card p-4 sm:p-5">
+    <div id={id} className="card p-4 sm:p-5" style={{ scrollMarginTop: 92 }}>
       <h3 className="text-base sm:text-lg font-semibold mb-1">{title}</h3>
       {desc && <div className="text-xs text-[var(--muted)] mb-3 leading-relaxed">{desc}</div>}
       {children}
@@ -237,7 +237,7 @@ export function PalmOilCharts({ data }: { data: PalmOilData }) {
   return (
     <div className="space-y-6">
       {/* TL;DR */}
-      <div className="card p-5 border-l-4" style={{ borderLeftColor: "var(--primary)" }}>
+      <div id="tldr" className="card p-5 border-l-4" style={{ borderLeftColor: "var(--primary)", scrollMarginTop: 92 }}>
         <h2 className="text-base font-bold mb-2">核心结论（TL;DR）</h2>
         <ul className="text-sm space-y-1.5 list-disc pl-5">
           <li><b>区间区分后规律清晰：</b>三个主力合约各取交割前约6个月主力窗口（01=8月~次年1月、05=12月~次年5月、09=4月~9月）。等权平均窗口涨跌：<b style={{ color: RED }}>05 最强 {avgChange["05"] > 0 ? "+" : ""}{avgChange["05"]}%</b>、01 居中 {avgChange["01"] > 0 ? "+" : ""}{avgChange["01"]}%、09 最弱 {avgChange["09"] > 0 ? "+" : ""}{avgChange["09"]}%。三个窗口均值均为正，主力期整体呈季节性上行。</li>
@@ -248,7 +248,7 @@ export function PalmOilCharts({ data }: { data: PalmOilData }) {
       </div>
 
       {/* KPI */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div id="kpi" className="grid grid-cols-2 md:grid-cols-4 gap-3" style={{ scrollMarginTop: 92 }}>
         {([["05合约窗口(12~次年5月)", avgChange["05"], "最强窗口"], ["01合约窗口(8~次年1月)", avgChange["01"], "居中"], ["09合约窗口(4~9月)", avgChange["09"], "最弱"], ["当前合约", null, "01窗口进行中"]] as const).map(([lab, val, note], i) => (
           <div key={i} className="card p-3 sm:p-4">
             <div className="text-xs text-[var(--muted)]">{lab}</div>
@@ -261,7 +261,7 @@ export function PalmOilCharts({ data }: { data: PalmOilData }) {
       </div>
 
       {/* 图① */}
-      <Card
+      <Card id="chart1"
         title="① 各合约历年窗口走势叠加（逐日）"
         desc={<>切换合约查看主力窗口内历年走势叠加：横轴为<b>逐日颗粒度</b>月-日（各年约110个交易日），按日历月-日对齐，非共同交易日用相邻点直线连接；悬停显示每个合约真实日期。归一化=窗口首月末收盘=100。</>}
         src={`数据源：${data.source} ｜ 抓取 ${data.fetch_date}`}
@@ -283,22 +283,22 @@ export function PalmOilCharts({ data }: { data: PalmOilData }) {
       </Card>
 
       {/* 图② */}
-      <Card title="② 三合约平均窗口路径对比（逐日）" desc="横轴为「窗口内第 N 个交易日」（等进度插值对齐，各合约窗口交易日数不同故按进度归一），三条线为各合约历年等权平均归一化逐日路径。末点与月末口径一致：05 上升斜率最陡，09 最平。">
+      <Card id="chart2" title="② 三合约平均窗口路径对比（逐日）" desc="横轴为「窗口内第 N 个交易日」（等进度插值对齐，各合约窗口交易日数不同故按进度归一），三条线为各合约历年等权平均归一化逐日路径。末点与月末口径一致：05 上升斜率最陡，09 最平。">
         <ReactECharts option={opt2} style={{ height: 340, width: "100%" }} notMerge={true} opts={{ renderer: "svg" }} />
       </Card>
 
       {/* 图③ + ③-2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="③ 各交割年三合约窗口涨跌幅（起始→末）" desc="按交割年分组，同月三合约「窗口起始交易日收盘→最后交易日收盘」涨跌并列对比（红涨绿跌）。悬停看真实起止日期与价格。">
+        <Card id="chart3" title="③ 各交割年三合约窗口涨跌幅（起始→末）" desc="按交割年分组，同月三合约「窗口起始交易日收盘→最后交易日收盘」涨跌并列对比（红涨绿跌）。悬停看真实起止日期与价格。">
           <ReactECharts option={opt3} style={{ height: 330, width: "100%" }} notMerge={true} opts={{ renderer: "svg" }} onEvents={{ legendselectchanged: onLegendChange }} />
         </Card>
-        <Card title="③-2 起始日→最高价日涨幅（逐日）" desc="逐日真实行情：起始交易日收盘 → 窗口内最高价日日内最高价（high）的涨幅，衡量区间最大上行空间。峰值即起始日显示灰柱。悬停看具体日期。">
+        <Card id="chart32" title="③-2 起始日→最高价日涨幅（逐日）" desc="逐日真实行情：起始交易日收盘 → 窗口内最高价日日内最高价（high）的涨幅，衡量区间最大上行空间。峰值即起始日显示灰柱。悬停看具体日期。">
           <ReactECharts option={opt32} style={{ height: 330, width: "100%" }} notMerge={true} opts={{ renderer: "svg" }} onEvents={{ legendselectchanged: onLegendChange }} />
         </Card>
       </div>
 
       {/* 明细表 */}
-      <Card title="④ 各合约关键数据一览" desc="按合约分组列出各年度窗口首末价、区间涨跌、逐日最高涨幅、首日到最高点的交易日数、节点数。进行中的 P2701 仅 4/6 节点。">
+      <Card id="table" title="④ 各合约关键数据一览" desc="按合约分组列出各年度窗口首末价、区间涨跌、逐日最高涨幅、首日到最高点的交易日数、节点数。进行中的 P2701 仅 4/6 节点。">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
@@ -343,7 +343,7 @@ export function PalmOilCharts({ data }: { data: PalmOilData }) {
       </Card>
 
       {/* 口径说明 */}
-      <Card title="数据口径与方法说明">
+      <Card id="method" title="数据口径与方法说明">
         <div className="text-xs text-[var(--muted)] space-y-1.5 leading-relaxed">
           <p>1. <b>标的：</b>棕榈油期货（P）于 2007 年在大商所上市，01/05/09 为主力月份合约。</p>
           <p>2. <b>窗口区间：</b>每合约只取临近交割的核心主力窗口——01=8月~次年1月、05=12月~次年5月、09=4月~9月（各6个月）。</p>
