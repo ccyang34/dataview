@@ -13,8 +13,8 @@ const NAV_ITEMS = [
     { href: "/analysis/crush-margin", label: "大豆榨利分析" },
     { href: "/analysis/soybean-oil-y01", label: "豆油主力分析" },
     { href: "/analysis/palm-oil-p01", label: "棕榈油主力分析" },
-    { href: "/database", label: "研究数据库" },
     { href: "/analysis/oil-shape-research", label: "油脂形态研究" },
+    { href: "/database", label: "研究数据库" },
 ];
 
 export function Navbar({ user }: NavbarProps) {
