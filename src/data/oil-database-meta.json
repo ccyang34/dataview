@@ -2,24 +2,24 @@
   "database": "oil-research.sqlite",
   "title": "油脂研究数据库",
   "description": "豆油(Y)、棕榈油(P) 主力 01/05/09 合约历史行情、持仓与形态研究复算结果的单一 SQLite 数据库。与网页报告同源，由脚本生成。",
-  "generated_at": "2026-11-25T18:57:27.315Z",
+  "generated_at": "2026-11-26T18:47:37.929Z",
   "sources": [
     {
       "name": "豆油主力分析",
       "file": "soybean-oil-y01.json",
-      "updated_at": "2026-11-25T18:44:02.390Z",
+      "updated_at": "2026-11-26T18:32:09.748Z",
       "source": "新浪财经期货日线 JSONP (InnerFuturesNewService.getDailyKLine) · 大连商品交易所内盘豆油(Y)"
     },
     {
       "name": "棕榈油主力分析",
       "file": "palm-oil-p01.json",
-      "updated_at": "2026-11-24T19:36:17.857Z",
+      "updated_at": "2026-11-26T18:31:48.295Z",
       "source": "新浪财经期货日线 JSONP (InnerFuturesNewService.getDailyKLine) · 大连商品交易所内盘棕榈油(P)"
     },
     {
       "name": "油脂形态研究",
       "file": "oil-shape-research.json",
-      "updated_at": "2026-11-25T18:50:27.944Z",
+      "updated_at": "2026-11-26T18:38:55.668Z",
       "source": "形态规律由豆油/棕榈油主力分析数据复算；2705 实时价来自新浪财经期货日线 JSONP"
     }
   ],
@@ -89,7 +89,7 @@
         "norm:REAL",
         "oi:REAL"
       ],
-      "rows": 4783
+      "rows": 4786
     },
     {
       "name": "monthly_nodes",
